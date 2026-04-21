@@ -390,8 +390,8 @@ try {
       syncTrackMixer()
       applyLoopRangeToPlayer()
       if (shouldResetViewport) {
-        player?.resetViewport()
         shouldResetViewport = false
+        player?.resetViewport()
       }
     },
   })

@@ -68,6 +68,8 @@ export class PracticePlayer {
         enableElementHighlighting: true,
         enableAnimatedBeatCursor: false,
         enableUserInteraction: false,
+        scrollElement: container.parentElement as HTMLElement,
+        scrollOffsetY: -30,
         scrollMode: 1,
         scrollSpeed: 200,
         soundFont: soundFontUrl,
@@ -126,7 +128,26 @@ export class PracticePlayer {
   }
 
   resetViewport() {
-    this.container.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior })
+    const scrollParent = this.container.parentElement
+    const reset = () => {
+      this.container.scrollTop = 0
+      this.container.scrollLeft = 0
+      if (scrollParent) {
+        scrollParent.scrollTop = 0
+        scrollParent.scrollLeft = 0
+      }
+      window.scrollTo(0, 0)
+    }
+
+    reset()
+
+    const onScroll = () => reset()
+    scrollParent?.addEventListener('scroll', onScroll)
+    window.addEventListener('scroll', onScroll)
+    setTimeout(() => {
+      scrollParent?.removeEventListener('scroll', onScroll)
+      window.removeEventListener('scroll', onScroll)
+    }, 1000)
   }
 
   seekToTick(tick: number) {

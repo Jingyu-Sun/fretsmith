@@ -35,14 +35,15 @@ button {
 }
 
 #app {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   padding-top: 104px;
 }
 
 .app-shell {
   width: min(1600px, calc(100vw - 24px));
   margin: 12px auto;
-  min-height: calc(100vh - 116px);
+  height: calc(100vh - 116px);
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 12px;
@@ -172,6 +173,7 @@ button {
 
 .workspace-single {
   min-height: 0;
+  display: grid;
 }
 
 .score-panel {
