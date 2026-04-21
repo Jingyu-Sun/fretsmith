@@ -14,7 +14,7 @@ import {
   type PracticeState,
 } from './state/practiceState'
 import { renderLayout } from './ui/layout'
-import { getBeatLoopPoint, orderLoopPoints } from './ui/loopSelection'
+import { getBarStartLoopPoint, getBarEndLoopPoint, getBarFirstBeat, getBarLastBeat, orderLoopPoints } from './ui/loopSelection'
 
 const app = document.querySelector<HTMLDivElement>('#app')
 
@@ -267,14 +267,15 @@ const bindUi = () => {
 const handleBeatSelection = (beat: Beat) => {
   if (!player) return
 
-  const nextPoint = getBeatLoopPoint(beat)
-
   if (state.interactionMode === 'setLoopStart') {
-    highlightedStartBeat = beat
+    const nextStart = getBarStartLoopPoint(beat)
+    highlightedStartBeat = getBarFirstBeat(beat)
     const nextLoopEnd = state.loopEnd
     if (nextLoopEnd && highlightedEndBeat) {
-      const ordered = orderLoopPoints(nextPoint, nextLoopEnd)
-      player.highlightRange(ordered.start.tick === nextPoint.tick ? beat : highlightedEndBeat, ordered.end.tick === nextLoopEnd.tick ? highlightedEndBeat : beat)
+      const ordered = orderLoopPoints(nextStart, nextLoopEnd)
+      const startBeat = ordered.start.tick === nextStart.tick ? highlightedStartBeat : highlightedEndBeat
+      const endBeat = ordered.end.tick === nextLoopEnd.tick ? highlightedEndBeat : highlightedStartBeat
+      player.highlightRange(startBeat, endBeat)
       player.setLoopRange(ordered.start.tick, ordered.end.tick)
       setState({
         loopStart: ordered.start,
@@ -285,21 +286,22 @@ const handleBeatSelection = (beat: Beat) => {
     } else {
       player.clearHighlightedRange()
       setState({
-        loopStart: nextPoint,
+        loopStart: nextStart,
         interactionMode: 'normal',
-        statusText: `Loop start set to bar ${nextPoint.barIndex + 1}.`,
+        statusText: `Loop start set to bar ${nextStart.barIndex + 1}.`,
       })
     }
     return
   }
 
   if (state.interactionMode === 'setLoopEnd') {
-    highlightedEndBeat = beat
+    const nextEnd = getBarEndLoopPoint(beat)
+    highlightedEndBeat = getBarLastBeat(beat)
     const nextLoopStart = state.loopStart
     if (nextLoopStart && highlightedStartBeat) {
-      const ordered = orderLoopPoints(nextLoopStart, nextPoint)
-      const startBeat = ordered.start.tick === nextLoopStart.tick ? highlightedStartBeat : beat
-      const endBeat = ordered.end.tick === nextPoint.tick ? beat : highlightedStartBeat
+      const ordered = orderLoopPoints(nextLoopStart, nextEnd)
+      const startBeat = ordered.start.tick === nextLoopStart.tick ? highlightedStartBeat : highlightedEndBeat
+      const endBeat = ordered.end.tick === nextEnd.tick ? highlightedEndBeat : highlightedStartBeat
       player.highlightRange(startBeat, endBeat)
       player.setLoopRange(ordered.start.tick, ordered.end.tick)
       setState({
@@ -310,16 +312,17 @@ const handleBeatSelection = (beat: Beat) => {
       })
     } else {
       setState({
-        loopEnd: nextPoint,
+        loopEnd: nextEnd,
         interactionMode: 'normal',
-        statusText: `Loop end set to bar ${nextPoint.barIndex + 1}.`,
+        statusText: `Loop end set to bar ${nextEnd.barIndex + 1}.`,
       })
     }
     return
   }
 
-  player.seekToTick(nextPoint.tick)
-  setState({ statusText: `Moved playback to bar ${nextPoint.barIndex + 1}.` })
+  const barStart = getBarStartLoopPoint(beat)
+  player.seekToTick(barStart.tick)
+  setState({ statusText: `Moved playback to bar ${barStart.barIndex + 1}.` })
 }
 
 app.innerHTML = renderLayout(state)
