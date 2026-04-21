@@ -100,7 +100,7 @@ export const renderLayout = (state: PracticeState) => `
       <div class="brand-block">
         <div class="brand-lockup">
           <span class="brand-kicker">Practice smarter</span>
-          <span class="brand-wordmark">GUITAR NERD</span>
+          <span class="brand-wordmark">FRETSMITH</span>
         </div>
         ${renderMeta(state)}
       </div>

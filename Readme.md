@@ -1,6 +1,6 @@
-# Guitar Nerd
+# FretSmith
 
-Guitar Nerd is a local Guitar Pro practice player built with Vite, TypeScript, and alphaTab.
+FretSmith is a local Guitar Pro practice player built with Vite, TypeScript, and alphaTab.
 
 It lets you load Guitar Pro files in the browser, render notation/tab, control playback speed and zoom, switch notation views, choose tracks, and practice loop ranges.
 
