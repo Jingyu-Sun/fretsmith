@@ -58,10 +58,10 @@ const icon = {
     </svg>`,
   loop: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M17 2l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M19 4H8a4 4 0 0 0 0 8h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-      <path d="M7 22l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M5 20h11a4 4 0 0 0 0-8h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M6 8h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="m13 5 5 3-5 3Z" fill="currentColor" />
+      <path d="M18 8a4 4 0 0 1 0 8H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="m11 13-5 3 5 3Z" fill="currentColor" />
     </svg>`,
   clear: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
@@ -134,7 +134,7 @@ export const renderLayout = (state: PracticeState) => `
           'toolbar-track-pill',
           !state.trackStates.length,
         )}
-        <button id="count-in-toggle-btn" class="toolbar-icon-button toolbar-action-icon ${state.countInEnabled ? 'is-active' : ''}">
+        <button id="count-in-toggle-btn" class="toolbar-icon-button toolbar-action-icon ${state.countInEnabled ? 'is-active' : ''}" title="Count-in">
           <span class="toolbar-symbol" aria-hidden="true">${icon.countIn}</span>
           <span class="sr-only">Count-in</span>
         </button>
@@ -150,6 +150,10 @@ export const renderLayout = (state: PracticeState) => `
         </button>
       </div>
       <div class="transport-right toolbar-group toolbar-actions">
+        <button id="toggle-loop" class="toolbar-icon-button toolbar-action-icon ${state.isLooping ? 'is-active' : ''}" title="Loop" ${state.isLoaded ? '' : 'disabled'}>
+          <span class="toolbar-symbol" aria-hidden="true">${icon.loop}</span>
+          <span class="sr-only">Toggle loop playback</span>
+        </button>
         <span class="toolbar-range-label">Selected Range:</span>
         <div class="toolbar-select-pill loop-pill">
           <select id="set-loop-start" class="toolbar-select">
@@ -164,11 +168,7 @@ export const renderLayout = (state: PracticeState) => `
             <option value="set">Click score</option>
           </select>
         </div>
-        <button id="toggle-loop" class="toolbar-icon-button toolbar-action-icon ${state.isLooping ? 'is-active' : ''}" ${state.isLoaded ? '' : 'disabled'}>
-          <span class="toolbar-symbol" aria-hidden="true">${icon.loop}</span>
-          <span class="sr-only">Toggle loop playback</span>
-        </button>
-        <button id="clear-loop" class="toolbar-icon-button toolbar-action-icon" ${state.loopStart || state.loopEnd ? '' : 'disabled'}>
+        <button id="clear-loop" class="toolbar-icon-button toolbar-action-icon" title="Clear selected range" ${state.loopStart || state.loopEnd ? '' : 'disabled'}>
           <span class="toolbar-symbol" aria-hidden="true">${icon.clear}</span>
           <span class="sr-only">Clear selected range</span>
         </button>
