@@ -104,19 +104,29 @@ const syncUi = () => {
   const tempoSelect = document.querySelector<HTMLSelectElement>('#tempo-select')
   const zoomSelect = document.querySelector<HTMLSelectElement>('#zoom-select')
   const notationSelect = document.querySelector<HTMLSelectElement>('#notation-select')
-  const countInToggle = document.querySelector<HTMLInputElement>('#count-in-toggle')
+  const countInToggle = document.querySelector<HTMLButtonElement>('#count-in-toggle-btn')
   const trackSelect = document.querySelector<HTMLSelectElement>('#track-select')
 
   if (toolbarTime) toolbarTime.textContent = `${formatMillis(state.currentTimeMs)} / ${formatMillis(state.endTimeMs)}`
   if (playToggle) {
     playToggle.disabled = !state.isLoaded
-    playToggle.textContent = state.isPlaying ? 'Pause' : 'Play'
+    const shouldShowPause = state.isPlaying
+    const currentIcon = playToggle.dataset.icon
+    if (currentIcon !== (shouldShowPause ? 'pause' : 'play')) {
+      playToggle.dataset.icon = shouldShowPause ? 'pause' : 'play'
+      const symbolSpan = playToggle.querySelector('.toolbar-symbol')
+      if (symbolSpan) {
+        symbolSpan.innerHTML = shouldShowPause
+          ? '<svg class="toolbar-svg" viewBox="0 0 24 24"><rect x="7" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="13" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>'
+          : '<svg class="toolbar-svg" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7Z" fill="currentColor"/></svg>'
+      }
+    }
   }
   if (stopButton) stopButton.disabled = !state.isLoaded
   if (tempoSelect) tempoSelect.value = String(state.playbackSpeed)
   if (zoomSelect) zoomSelect.value = String(state.zoom)
   if (notationSelect) notationSelect.value = state.notationView
-  if (countInToggle) countInToggle.checked = state.countInEnabled
+  if (countInToggle) countInToggle.classList.toggle('is-active', state.countInEnabled)
   if (trackSelect) trackSelect.disabled = !currentScore
 
   updateLoopDetails()
@@ -134,7 +144,7 @@ const bindUi = () => {
   const setLoopEnd = document.querySelector<HTMLSelectElement>('#set-loop-end')
   const toggleLoop = document.querySelector<HTMLButtonElement>('#toggle-loop')
   const clearLoop = document.querySelector<HTMLButtonElement>('#clear-loop')
-  const countInToggle = document.querySelector<HTMLInputElement>('#count-in-toggle')
+  const countInToggle = document.querySelector<HTMLButtonElement>('#count-in-toggle-btn')
   const trackSelect = document.querySelector<HTMLSelectElement>('#track-select')
 
   fileInput?.addEventListener('change', async (event) => {
@@ -231,8 +241,8 @@ const bindUi = () => {
     })
   })
 
-  countInToggle?.addEventListener('change', (event) => {
-    const enabled = (event.currentTarget as HTMLInputElement).checked
+  countInToggle?.addEventListener('click', () => {
+    const enabled = !state.countInEnabled
     player?.setCountInEnabled(enabled, state.countInVolume)
     setState({ countInEnabled: enabled })
   })
@@ -284,7 +294,7 @@ const handleBeatSelection = (beat: Beat) => {
         statusText: `Loop start set to bar ${ordered.start.barIndex + 1}.`,
       })
     } else {
-      player.clearHighlightedRange()
+      player.highlightRange(highlightedStartBeat, getBarLastBeat(beat))
       setState({
         loopStart: nextStart,
         interactionMode: 'normal',
@@ -311,6 +321,7 @@ const handleBeatSelection = (beat: Beat) => {
         statusText: `Loop end set to bar ${ordered.end.barIndex + 1}.`,
       })
     } else {
+      player.highlightRange(getBarFirstBeat(beat), highlightedEndBeat)
       setState({
         loopEnd: nextEnd,
         interactionMode: 'normal',

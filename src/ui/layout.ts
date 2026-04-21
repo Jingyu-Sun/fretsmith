@@ -4,12 +4,12 @@ const loopLabel = (point: LoopPoint | null, fallback: string) =>
   point ? `Bar ${point.barIndex + 1}` : fallback
 
 const renderSpeedOptions = (selectedSpeed: number) =>
-  [0.5, 0.6, 0.75, 0.9, 1, 1.1, 1.25]
-    .map((speed) => `<option value="${speed}" ${selectedSpeed === speed ? 'selected' : ''}>${Math.round(speed * 100)}%</option>`)
+  [0.25, 0.5, 0.75, 0.9, 1, 1.5, 2]
+    .map((speed) => `<option value="${speed}" ${selectedSpeed === speed ? 'selected' : ''}>${speed}x</option>`)
     .join('')
 
 const renderZoomOptions = (selectedZoom: number) =>
-  [0.75, 0.85, 1, 1.15, 1.3, 1.5]
+  [0.25, 0.5, 0.75, 0.85, 1, 1.15, 1.3, 1.5, 2]
     .map((zoom) => `<option value="${zoom}" ${selectedZoom === zoom ? 'selected' : ''}>${Math.round(zoom * 100)}%</option>`)
     .join('')
 
@@ -36,10 +36,6 @@ const renderMeta = (state: PracticeState) => {
 }
 
 const icon = {
-  tempo: `
-    <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 4 8 13h3l-1 7 6-10h-3l2-6Z" fill="currentColor" />
-    </svg>`,
   zoom: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2" />
@@ -56,23 +52,16 @@ const icon = {
     </svg>`,
   countIn: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 5h8l2 4v10H6V9l2-4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
-      <path d="M9 5V3m6 2V3m-3 7v3l2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>`,
-  from: `
-    <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 5v14M18 8l-5 4 5 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>`,
-  to: `
-    <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M18 5v14M6 8l5 4-5 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M12 5v7l4 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+      <path d="M8 1h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>`,
   loop: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 7h9a4 4 0 0 1 0 8h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="m14 18 2 2 2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M17 17H8a4 4 0 0 1 0-8h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="m10 6-2-2-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M17 2l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M19 4H8a4 4 0 0 0 0 8h1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      <path d="M7 22l-2-2 2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M5 20h11a4 4 0 0 0 0-8h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
     </svg>`,
   clear: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
@@ -80,15 +69,16 @@ const icon = {
     </svg>`,
   play: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m8 6 10 6-10 6Z" fill="currentColor" />
+      <path d="m8 5 12 7-12 7Z" fill="currentColor" />
     </svg>`,
   pause: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 6h3v12H8zm5 0h3v12h-3z" fill="currentColor" />
+      <rect x="7" y="5" width="4" height="14" rx="1" fill="currentColor" />
+      <rect x="13" y="5" width="4" height="14" rx="1" fill="currentColor" />
     </svg>`,
   stop: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" />
+      <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
     </svg>`,
 }
 
@@ -131,7 +121,9 @@ export const renderLayout = (state: PracticeState) => `
 
     <footer class="transport-bar transport-bar-jitashe">
       <div class="transport-left toolbar-group">
-        ${renderSelectShell('tempo-select', renderSpeedOptions(state.playbackSpeed), icon.tempo, 'Tempo', 'tempo-pill')}
+        <div class="toolbar-select-pill tempo-pill">
+          <select id="tempo-select" class="toolbar-select">${renderSpeedOptions(state.playbackSpeed)}</select>
+        </div>
         ${renderSelectShell('zoom-select', renderZoomOptions(state.zoom), icon.zoom, 'Zoom', 'zoom-pill')}
         ${renderSelectShell('notation-select', renderNotationOptions(state.notationView), icon.notation, 'Notation', 'notation-pill')}
         ${renderSelectShell(
@@ -142,11 +134,10 @@ export const renderLayout = (state: PracticeState) => `
           'toolbar-track-pill',
           !state.trackStates.length,
         )}
-        <label class="toolbar-checkbox-pill toolbar-count-pill">
-          <input id="count-in-toggle" type="checkbox" ${state.countInEnabled ? 'checked' : ''} />
+        <button id="count-in-toggle-btn" class="toolbar-icon-button toolbar-action-icon ${state.countInEnabled ? 'is-active' : ''}">
           <span class="toolbar-symbol" aria-hidden="true">${icon.countIn}</span>
           <span class="sr-only">Count-in</span>
-        </label>
+        </button>
       </div>
       <div class="transport-center toolbar-center">
         <button id="play-toggle" class="play-button play-button-round" ${state.isLoaded ? '' : 'disabled'}>
@@ -159,22 +150,20 @@ export const renderLayout = (state: PracticeState) => `
         </button>
       </div>
       <div class="transport-right toolbar-group toolbar-actions">
-        ${renderSelectShell(
-          'set-loop-start',
-          `<option value="normal" ${state.interactionMode === 'setLoopStart' ? '' : 'selected'}>${loopLabel(state.loopStart, 'From')}</option>
-           <option value="set">Click score for From</option>`,
-          icon.from,
-          'Loop from',
-          'loop-pill loop-pill-wide',
-        )}
-        ${renderSelectShell(
-          'set-loop-end',
-          `<option value="normal" ${state.interactionMode === 'setLoopEnd' ? '' : 'selected'}>${loopLabel(state.loopEnd, 'To')}</option>
-           <option value="set">Click score for To</option>`,
-          icon.to,
-          'Loop to',
-          'loop-pill loop-pill-wide',
-        )}
+        <span class="toolbar-range-label">Loop:</span>
+        <div class="toolbar-select-pill loop-pill">
+          <select id="set-loop-start" class="toolbar-select">
+            <option value="normal" ${state.interactionMode === 'setLoopStart' ? '' : 'selected'}>${loopLabel(state.loopStart, 'From')}</option>
+            <option value="set">Click score</option>
+          </select>
+        </div>
+        <span class="toolbar-range-dash">&mdash;</span>
+        <div class="toolbar-select-pill loop-pill">
+          <select id="set-loop-end" class="toolbar-select">
+            <option value="normal" ${state.interactionMode === 'setLoopEnd' ? '' : 'selected'}>${loopLabel(state.loopEnd, 'To')}</option>
+            <option value="set">Click score</option>
+          </select>
+        </div>
         <button id="toggle-loop" class="toolbar-icon-button toolbar-action-icon ${state.isLooping ? 'is-active' : ''}" ${state.loopStart && state.loopEnd ? '' : 'disabled'}>
           <span class="toolbar-symbol" aria-hidden="true">${icon.loop}</span>
           <span class="sr-only">Toggle loop</span>

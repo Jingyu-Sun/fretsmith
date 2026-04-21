@@ -46,7 +46,7 @@ button {
   height: calc(100vh - 116px);
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: 12px;
+  gap: 0;
 }
 
 .topbar,
@@ -178,7 +178,7 @@ button {
 
 .score-panel {
   min-height: 0;
-  border-radius: 28px;
+  border-radius: 28px 28px 0 0;
   display: grid;
   grid-template-rows: 1fr;
   overflow: hidden;
@@ -201,9 +201,7 @@ button {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 999px;
-  position: sticky;
-  bottom: 10px;
+  border-radius: 0 0 28px 28px;
   z-index: 20;
 }
 
@@ -253,11 +251,7 @@ button {
 }
 
 .loop-pill {
-  min-width: 110px;
-}
-
-.loop-pill-wide {
-  min-width: 128px;
+  min-width: 90px;
 }
 
 .toolbar-symbol {
@@ -287,6 +281,19 @@ button {
   font-size: 1.3rem;
 }
 
+.toolbar-range-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.toolbar-range-dash {
+  color: #94a3b8;
+  font-weight: 400;
+  user-select: none;
+}
+
 .toolbar-select {
   border: 0;
   background: transparent;
@@ -308,10 +315,6 @@ button {
   align-items: center;
   gap: 8px;
   padding-right: 14px;
-}
-
-.toolbar-count-pill .toolbar-symbol {
-  color: #0f172a;
 }
 
 .toolbar-icon-button {
@@ -337,9 +340,16 @@ button {
   border-color: transparent;
 }
 
+.toolbar-icon-button.is-active .toolbar-symbol {
+  color: white;
+}
+
 .play-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 84px;
-  min-height: 48px;
+  min-height: 36px;
   padding: 0 18px;
   border-radius: 999px;
   background: linear-gradient(135deg, #fb7185, #ef4444);
@@ -383,7 +393,8 @@ button {
 
 .at-cursor-beat {
   background: rgba(37, 99, 235, 0.85) !important;
-  width: 3px !important;
+  width: 5px !important;
+  border-radius: 2px !important;
 }
 
 @media (max-width: 1120px) {
@@ -398,7 +409,7 @@ button {
 
   .transport-bar {
     grid-template-columns: 1fr;
-    border-radius: 28px;
+    border-radius: 0 0 28px 28px;
   }
 
   .toolbar-group,
@@ -418,10 +429,16 @@ button {
     padding-top: 116px;
   }
 
-  .topbar,
-  .score-panel,
-  .transport-bar {
+  .topbar {
     border-radius: 20px;
+  }
+
+  .score-panel {
+    border-radius: 20px 20px 0 0;
+  }
+
+  .transport-bar {
+    border-radius: 0 0 20px 20px;
   }
 
   .topbar {
