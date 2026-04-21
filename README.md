@@ -2,7 +2,7 @@
 
 FretSmith is a local Guitar Pro practice player built with Vite, TypeScript, and alphaTab.
 
-It lets you load Guitar Pro files in the browser, render notation/tab, control playback speed and zoom, switch notation views, choose tracks, and practice loop ranges.
+It lets you load Guitar Pro files in the browser, render notation and tablature, adjust playback speed and zoom, switch notation views, isolate tracks, use count-in, define a selected range, and toggle loop playback for focused practice.
 
 ## Features
 
@@ -19,8 +19,8 @@ It lets you load Guitar Pro files in the browser, render notation/tab, control p
   - Tab Mixed
 - Select individual tracks or render all tracks
 - Enable or disable count-in
-- Set loop start and end points from the score
-- Toggle looping for focused practice
+- Define a selected range from the score
+- Toggle loop playback independently of the selected range
 
 ## Tech stack
 
@@ -68,7 +68,7 @@ npm run build
 2. Open the local URL shown by Vite
 3. Click **Open GP File**
 4. Choose a supported Guitar Pro file
-5. Use the bottom toolbar to control playback, notation, zoom, track selection, count-in, and looping
+5. Use the bottom toolbar to control playback, notation, zoom, track selection, count-in, the selected range, and loop playback
 
 ## Supported file types
 
