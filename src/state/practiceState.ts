@@ -1,4 +1,5 @@
 export type InteractionMode = 'normal' | 'setLoopStart' | 'setLoopEnd'
+export type NotationView = 'default' | 'score-tab' | 'score' | 'tab' | 'tab-mixed'
 
 export type LoopPoint = {
   barIndex: number
@@ -21,6 +22,7 @@ export type PracticeState = {
   interactionMode: InteractionMode
   playbackSpeed: number
   zoom: number
+  notationView: NotationView
   currentTimeMs: number
   endTimeMs: number
   currentBarIndex: number | null
@@ -33,18 +35,18 @@ export type PracticeState = {
   trackStates: TrackControlState[]
   statusText: string
   errorText: string | null
-  debugText: string | null
 }
 
 export const defaultPracticeState = (): PracticeState => ({
-  fileName: 'No file loaded',
-  songTitle: 'Open a local Guitar Pro file to start practicing',
+  fileName: '',
+  songTitle: '',
   isLoaded: false,
   isPlaying: false,
   isLooping: false,
   interactionMode: 'normal',
   playbackSpeed: 1,
   zoom: 1,
+  notationView: 'tab',
   currentTimeMs: 0,
   endTimeMs: 0,
   currentBarIndex: null,
@@ -57,7 +59,6 @@ export const defaultPracticeState = (): PracticeState => ({
   trackStates: [],
   statusText: 'Choose a file to render the score and enable playback.',
   errorText: null,
-  debugText: null,
 })
 
 export const hasLoopRange = (state: PracticeState) =>

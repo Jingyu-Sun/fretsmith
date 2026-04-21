@@ -29,6 +29,7 @@ let highlightedStartBeat: Beat | null = null
 let highlightedEndBeat: Beat | null = null
 let player: PracticePlayer | null = null
 let pendingFile: File | null = null
+let shouldResetViewport = false
 
 const setState = (updater: Partial<PracticeState> | ((current: PracticeState) => PracticeState)) => {
   state = typeof updater === 'function' ? updater(state) : { ...state, ...updater }
@@ -41,10 +42,6 @@ const normalizeLabel = (value: string | null | undefined, fallback: string) => {
   return /�|\?{2,}/.test(text) ? fallback : text
 }
 
-const setDebugText = (debugText: string | null) => {
-  setState({ debugText })
-}
-
 const updateLoopDetails = () => {
   const loopStartSelect = document.querySelector<HTMLSelectElement>('#set-loop-start')
   const loopEndSelect = document.querySelector<HTMLSelectElement>('#set-loop-end')
@@ -52,18 +49,17 @@ const updateLoopDetails = () => {
   const clearLoop = document.querySelector<HTMLButtonElement>('#clear-loop')
 
   if (loopStartSelect) {
-    loopStartSelect.options[0].text = state.loopStart ? `Bar ${state.loopStart.barIndex + 1}` : 'Pick on score'
+    loopStartSelect.options[0].text = state.loopStart ? `Bar ${state.loopStart.barIndex + 1}` : 'From'
     loopStartSelect.value = state.interactionMode === 'setLoopStart' ? 'set' : 'normal'
   }
 
   if (loopEndSelect) {
-    loopEndSelect.options[0].text = state.loopEnd ? `Bar ${state.loopEnd.barIndex + 1}` : 'Pick on score'
+    loopEndSelect.options[0].text = state.loopEnd ? `Bar ${state.loopEnd.barIndex + 1}` : 'To'
     loopEndSelect.value = state.interactionMode === 'setLoopEnd' ? 'set' : 'normal'
   }
 
   if (toggleLoop) {
     toggleLoop.disabled = !hasLoopRange(state)
-    toggleLoop.textContent = state.isLooping ? 'Loop on' : 'Loop off'
     toggleLoop.classList.toggle('is-active', state.isLooping)
   }
 
@@ -102,23 +98,15 @@ const syncTrackMixer = () => {
 }
 
 const syncUi = () => {
-  const statusText = document.querySelector<HTMLElement>('#status-text')
-  const debugText = document.querySelector<HTMLElement>('#debug-text')
-  const playbackTime = document.querySelector<HTMLElement>('#playback-time')
   const toolbarTime = document.querySelector<HTMLElement>('#toolbar-time')
   const playToggle = document.querySelector<HTMLButtonElement>('#play-toggle')
   const stopButton = document.querySelector<HTMLButtonElement>('#stop-button')
   const tempoSelect = document.querySelector<HTMLSelectElement>('#tempo-select')
   const zoomSelect = document.querySelector<HTMLSelectElement>('#zoom-select')
+  const notationSelect = document.querySelector<HTMLSelectElement>('#notation-select')
   const countInToggle = document.querySelector<HTMLInputElement>('#count-in-toggle')
   const trackSelect = document.querySelector<HTMLSelectElement>('#track-select')
 
-  if (statusText) statusText.textContent = state.errorText ?? state.statusText
-  if (debugText) {
-    debugText.textContent = state.debugText ?? ''
-    debugText.classList.toggle('is-visible', Boolean(state.debugText))
-  }
-  if (playbackTime) playbackTime.textContent = `${formatMillis(state.currentTimeMs)} / ${formatMillis(state.endTimeMs)}`
   if (toolbarTime) toolbarTime.textContent = `${formatMillis(state.currentTimeMs)} / ${formatMillis(state.endTimeMs)}`
   if (playToggle) {
     playToggle.disabled = !state.isLoaded
@@ -127,6 +115,7 @@ const syncUi = () => {
   if (stopButton) stopButton.disabled = !state.isLoaded
   if (tempoSelect) tempoSelect.value = String(state.playbackSpeed)
   if (zoomSelect) zoomSelect.value = String(state.zoom)
+  if (notationSelect) notationSelect.value = state.notationView
   if (countInToggle) countInToggle.checked = state.countInEnabled
   if (trackSelect) trackSelect.disabled = !currentScore
 
@@ -138,6 +127,7 @@ const bindUi = () => {
   const fileInput = document.querySelector<HTMLInputElement>('#file-input')
   const tempoSelect = document.querySelector<HTMLSelectElement>('#tempo-select')
   const zoomSelect = document.querySelector<HTMLSelectElement>('#zoom-select')
+  const notationSelect = document.querySelector<HTMLSelectElement>('#notation-select')
   const playToggle = document.querySelector<HTMLButtonElement>('#play-toggle')
   const stopButton = document.querySelector<HTMLButtonElement>('#stop-button')
   const setLoopStart = document.querySelector<HTMLSelectElement>('#set-loop-start')
@@ -150,17 +140,10 @@ const bindUi = () => {
   fileInput?.addEventListener('change', async (event) => {
     const input = event.currentTarget as HTMLInputElement
     const file = input.files?.[0]
-    if (!file) {
-      setDebugText('File picker closed without selecting a file.')
-      return
-    }
-
-    if (!player) {
-      setDebugText('PracticePlayer was not initialized, so the selected file cannot be loaded.')
-      return
-    }
+    if (!file || !player) return
 
     pendingFile = file
+    shouldResetViewport = true
     highlightedStartBeat = null
     highlightedEndBeat = null
     currentScore = null
@@ -170,18 +153,16 @@ const bindUi = () => {
       fileName: file.name,
       songTitle: file.name,
       statusText: 'Loading Guitar Pro file…',
-      debugText: `Selected ${file.name} (${file.size} bytes). Waiting for alphaTab to parse the file.`,
     })
 
     try {
       await player.loadFile(file)
-      setDebugText(`alphaTab accepted ${file.name}. Waiting for scoreLoaded/renderFinished callbacks.`)
     } catch (error) {
+      shouldResetViewport = false
       setState((current) => ({
         ...current,
         errorText: error instanceof Error ? error.message : 'Unable to load this file.',
         statusText: 'Choose another file or verify the format is supported.',
-        debugText: error instanceof Error ? `loadFile threw: ${error.message}` : 'loadFile threw a non-Error value.',
       }))
     } finally {
       input.value = ''
@@ -198,6 +179,12 @@ const bindUi = () => {
     const nextZoom = Number((event.currentTarget as HTMLSelectElement).value)
     player?.setZoom(nextZoom)
     setState({ zoom: nextZoom })
+  })
+
+  notationSelect?.addEventListener('change', (event) => {
+    const nextNotationView = (event.currentTarget as HTMLSelectElement).value as PracticeState['notationView']
+    player?.setNotationView(nextNotationView)
+    setState({ notationView: nextNotationView })
   })
 
   playToggle?.addEventListener('click', () => {
@@ -344,70 +331,71 @@ if (!alphaContainer) {
 
 try {
   player = new PracticePlayer(alphaContainer, {
-  onScoreLoaded: (score: Score) => {
-    currentScore = score
-    currentTracks = [score.tracks[0]]
-    player?.renderTracks(currentTracks)
-    setDebugText(`scoreLoaded fired with ${score.tracks.length} track(s). Rendering the first track.`)
+    onScoreLoaded: (score: Score) => {
+      currentScore = score
+      currentTracks = [score.tracks[0]]
+      player?.renderTracks(currentTracks)
 
-    const trackStates = score.tracks.map((track) => ({
-      trackIndex: track.index,
-      mute: track.playbackInfo.isMute,
-      solo: track.playbackInfo.isSolo,
-    }))
+      const trackStates = score.tracks.map((track) => ({
+        trackIndex: track.index,
+        mute: track.playbackInfo.isMute,
+        solo: track.playbackInfo.isSolo,
+      }))
 
-    setState((current) => ({
-      ...current,
-      isLoaded: true,
-      fileName: pendingFile?.name ?? current.fileName,
-      songTitle: normalizeLabel(score.title, pendingFile?.name || 'Untitled song'),
-      endTimeMs: player?.api.endTime ?? 0,
-      trackStates,
-      selectedTrackIndexes: [score.tracks[0].index],
-      statusText: 'Click play to start, or Set A / Set B to choose a loop.',
-      errorText: null,
-    }))
+      setState((current) => ({
+        ...current,
+        isLoaded: true,
+        fileName: pendingFile?.name ?? current.fileName,
+        songTitle: normalizeLabel(score.title, pendingFile?.name || 'Untitled song'),
+        endTimeMs: player?.api.endTime ?? 0,
+        trackStates,
+        selectedTrackIndexes: [score.tracks[0].index],
+        statusText: 'Ready to play.',
+        errorText: null,
+      }))
 
-    player?.setPlaybackSpeed(state.playbackSpeed)
-    player?.setZoom(state.zoom)
-    player?.setCountInEnabled(state.countInEnabled, state.countInVolume)
-  },
-  onPlayerPositionChanged: (args: { currentTime: number; endTime: number; currentTick: number }) => {
-    setState({
-      currentTimeMs: args.currentTime,
-      endTimeMs: args.endTime,
-      currentBeatTick: args.currentTick,
-    })
-  },
-  onPlayingStateChanged: (isPlaying: boolean) => {
-    setState({ isPlaying, statusText: isPlaying ? 'Playback running.' : state.statusText })
-  },
-  onActiveBeatsChanged: (beats: Beat[]) => {
-    const firstBeat = beats[0]
-    if (!firstBeat) return
-    setState({ currentBarIndex: firstBeat.voice.bar.index })
-  },
-  onBeatMouseDown: (beat: Beat) => {
-    handleBeatSelection(beat)
-  },
-  onError: (message: string) => {
-    setState({
-      errorText: message,
-      statusText: 'alphaTab reported an error.',
-      debugText: `alphaTab error event: ${message}`,
-    })
-  },
-  onRenderFinished: () => {
-    setDebugText('renderFinished fired. The score should now be visible.')
-    syncTrackMixer()
-    applyLoopRangeToPlayer()
-  },
-})
+      player?.setPlaybackSpeed(state.playbackSpeed)
+      player?.setZoom(state.zoom)
+      player?.setNotationView(state.notationView)
+      player?.setCountInEnabled(state.countInEnabled, state.countInVolume)
+    },
+    onPlayerPositionChanged: (args: { currentTime: number; endTime: number; currentTick: number }) => {
+      setState({
+        currentTimeMs: args.currentTime,
+        endTimeMs: args.endTime,
+        currentBeatTick: args.currentTick,
+      })
+    },
+    onPlayingStateChanged: (isPlaying: boolean) => {
+      setState({ isPlaying, statusText: isPlaying ? 'Playback running.' : state.statusText })
+    },
+    onActiveBeatsChanged: (beats: Beat[]) => {
+      const firstBeat = beats[0]
+      if (!firstBeat) return
+      setState({ currentBarIndex: firstBeat.voice.bar.index })
+    },
+    onBeatMouseDown: (beat: Beat) => {
+      handleBeatSelection(beat)
+    },
+    onError: (message: string) => {
+      setState({
+        errorText: message,
+        statusText: 'alphaTab reported an error.',
+      })
+    },
+    onRenderFinished: () => {
+      syncTrackMixer()
+      applyLoopRangeToPlayer()
+      if (shouldResetViewport) {
+        player?.resetViewport()
+        shouldResetViewport = false
+      }
+    },
+  })
 } catch (error) {
   setState({
     errorText: error instanceof Error ? error.message : 'Practice player initialization failed.',
     statusText: 'The score engine failed to start.',
-    debugText: error instanceof Error ? `PracticePlayer constructor failed: ${error.message}` : 'PracticePlayer constructor failed with a non-Error value.',
   })
 }
 

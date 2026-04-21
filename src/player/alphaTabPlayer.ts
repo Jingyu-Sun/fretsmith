@@ -7,6 +7,8 @@ import {
   type model,
 } from '@coderline/alphatab'
 
+import type { NotationView } from '../state/practiceState'
+
 type Beat = model.Beat
 type Score = model.Score
 type Track = model.Track
@@ -34,10 +36,20 @@ type PlayerCallbacks = {
 const soundFontUrl = '/alphatab/soundfont/sonivox.sf2'
 const fontDirectory = '/alphatab/font/'
 
+const notationViewToStaveProfile: Record<NotationView, StaveProfile> = {
+  default: StaveProfile.Default,
+  'score-tab': StaveProfile.ScoreTab,
+  score: StaveProfile.Score,
+  tab: StaveProfile.Tab,
+  'tab-mixed': StaveProfile.TabMixed,
+}
+
 export class PracticePlayer {
   readonly api: AlphaTabApi
+  readonly container: HTMLElement
 
   constructor(container: HTMLElement, callbacks: PlayerCallbacks) {
+    this.container = container
     this.api = new AlphaTabApi(container, {
       core: {
         includeNoteBounds: true,
@@ -48,7 +60,7 @@ export class PracticePlayer {
       },
       display: {
         layoutMode: LayoutMode.Page,
-        staveProfile: StaveProfile.Tab,
+        staveProfile: notationViewToStaveProfile.tab,
         scale: 1,
       },
       player: {
@@ -92,6 +104,13 @@ export class PracticePlayer {
   setZoom(zoom: number) {
     this.api.settings.display.scale = zoom
     this.api.updateSettings()
+    this.api.render()
+  }
+
+  setNotationView(view: NotationView) {
+    this.api.settings.display.staveProfile = notationViewToStaveProfile[view]
+    this.api.updateSettings()
+    this.api.render()
   }
 
   setCountInEnabled(enabled: boolean, volume = 0.75) {
@@ -104,6 +123,10 @@ export class PracticePlayer {
 
   stop() {
     this.api.stop()
+  }
+
+  resetViewport() {
+    this.container.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior })
   }
 
   seekToTick(tick: number) {
