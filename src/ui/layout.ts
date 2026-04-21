@@ -150,7 +150,7 @@ export const renderLayout = (state: PracticeState) => `
         </button>
       </div>
       <div class="transport-right toolbar-group toolbar-actions">
-        <span class="toolbar-range-label">Loop:</span>
+        <span class="toolbar-range-label">Selected Range:</span>
         <div class="toolbar-select-pill loop-pill">
           <select id="set-loop-start" class="toolbar-select">
             <option value="normal" ${state.interactionMode === 'setLoopStart' ? '' : 'selected'}>${loopLabel(state.loopStart, 'From')}</option>
@@ -164,13 +164,13 @@ export const renderLayout = (state: PracticeState) => `
             <option value="set">Click score</option>
           </select>
         </div>
-        <button id="toggle-loop" class="toolbar-icon-button toolbar-action-icon ${state.isLooping ? 'is-active' : ''}" ${state.loopStart && state.loopEnd ? '' : 'disabled'}>
+        <button id="toggle-loop" class="toolbar-icon-button toolbar-action-icon ${state.isLooping ? 'is-active' : ''}" ${state.isLoaded ? '' : 'disabled'}>
           <span class="toolbar-symbol" aria-hidden="true">${icon.loop}</span>
-          <span class="sr-only">Toggle loop</span>
+          <span class="sr-only">Toggle loop playback</span>
         </button>
         <button id="clear-loop" class="toolbar-icon-button toolbar-action-icon" ${state.loopStart || state.loopEnd ? '' : 'disabled'}>
           <span class="toolbar-symbol" aria-hidden="true">${icon.clear}</span>
-          <span class="sr-only">Clear loop</span>
+          <span class="sr-only">Clear selected range</span>
         </button>
       </div>
     </footer>

@@ -10,7 +10,6 @@ import { PracticePlayer } from './player/alphaTabPlayer'
 import {
   defaultPracticeState,
   formatMillis,
-  hasLoopRange,
   type PracticeState,
 } from './state/practiceState'
 import { renderLayout } from './ui/layout'
@@ -59,7 +58,6 @@ const updateLoopDetails = () => {
   }
 
   if (toggleLoop) {
-    toggleLoop.disabled = !hasLoopRange(state)
     toggleLoop.classList.toggle('is-active', state.isLooping)
   }
 
@@ -106,6 +104,7 @@ const syncUi = () => {
   const notationSelect = document.querySelector<HTMLSelectElement>('#notation-select')
   const countInToggle = document.querySelector<HTMLButtonElement>('#count-in-toggle-btn')
   const trackSelect = document.querySelector<HTMLSelectElement>('#track-select')
+  const toggleLoop = document.querySelector<HTMLButtonElement>('#toggle-loop')
 
   if (toolbarTime) toolbarTime.textContent = `${formatMillis(state.currentTimeMs)} / ${formatMillis(state.endTimeMs)}`
   if (playToggle) {
@@ -128,6 +127,7 @@ const syncUi = () => {
   if (notationSelect) notationSelect.value = state.notationView
   if (countInToggle) countInToggle.classList.toggle('is-active', state.countInEnabled)
   if (trackSelect) trackSelect.disabled = !currentScore
+  if (toggleLoop) toggleLoop.disabled = !state.isLoaded
 
   updateLoopDetails()
   syncTrackMixer()
@@ -199,9 +199,7 @@ const bindUi = () => {
 
   playToggle?.addEventListener('click', () => {
     if (!player) return
-    if (state.countInEnabled) {
-      player.setCountInEnabled(true, state.countInVolume)
-    }
+    player.setCountInEnabled(state.countInEnabled, state.countInVolume)
     player.togglePlay()
   })
 
@@ -209,6 +207,8 @@ const bindUi = () => {
     player?.stop()
     if (state.loopStart) {
       player?.seekToTick(state.loopStart.tick)
+    } else {
+      player?.seekToTick(0)
     }
   })
 
@@ -223,7 +223,6 @@ const bindUi = () => {
   })
 
   toggleLoop?.addEventListener('click', () => {
-    if (!hasLoopRange(state)) return
     const nextLooping = !state.isLooping
     player?.setLoopEnabled(nextLooping)
     setState({ isLooping: nextLooping })
@@ -291,14 +290,14 @@ const handleBeatSelection = (beat: Beat) => {
         loopStart: ordered.start,
         loopEnd: ordered.end,
         interactionMode: 'normal',
-        statusText: `Loop start set to bar ${ordered.start.barIndex + 1}.`,
+        statusText: `Range start set to bar ${ordered.start.barIndex + 1}.`,
       })
     } else {
       player.highlightRange(highlightedStartBeat, getBarLastBeat(beat))
       setState({
         loopStart: nextStart,
         interactionMode: 'normal',
-        statusText: `Loop start set to bar ${nextStart.barIndex + 1}.`,
+        statusText: `Range start set to bar ${nextStart.barIndex + 1}.`,
       })
     }
     return
@@ -318,14 +317,14 @@ const handleBeatSelection = (beat: Beat) => {
         loopStart: ordered.start,
         loopEnd: ordered.end,
         interactionMode: 'normal',
-        statusText: `Loop end set to bar ${ordered.end.barIndex + 1}.`,
+        statusText: `Range end set to bar ${ordered.end.barIndex + 1}.`,
       })
     } else {
       player.highlightRange(getBarFirstBeat(beat), highlightedEndBeat)
       setState({
         loopEnd: nextEnd,
         interactionMode: 'normal',
-        statusText: `Loop end set to bar ${nextEnd.barIndex + 1}.`,
+        statusText: `Range end set to bar ${nextEnd.barIndex + 1}.`,
       })
     }
     return
