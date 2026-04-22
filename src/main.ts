@@ -13,7 +13,7 @@ import {
   type PracticeState,
 } from './state/practiceState'
 import { renderLayout } from './ui/layout'
-import { getBarStartLoopPoint, getBarEndLoopPoint, getBarFirstBeat, getBarLastBeat, orderLoopPoints } from './ui/loopSelection'
+import { getBarStartLoopPoint, getBarEndLoopPoint, getBarFirstBeat, getBarLastBeat } from './ui/loopSelection'
 
 const app = document.querySelector<HTMLDivElement>('#app')
 
@@ -49,15 +49,17 @@ const updateLoopDetails = () => {
 
   if (loopStartSelect) {
     loopStartSelect.options[0].text = state.loopStart ? `Bar ${state.loopStart.barIndex + 1}` : 'From'
-    if (document.activeElement !== loopStartSelect) {
-      loopStartSelect.value = state.interactionMode === 'setLoopStart' ? 'set' : 'normal'
+    const startValue = state.interactionMode === 'setLoopStart' ? 'set' : 'normal'
+    if (document.activeElement !== loopStartSelect || startValue === 'normal') {
+      loopStartSelect.value = startValue
     }
   }
 
   if (loopEndSelect) {
     loopEndSelect.options[0].text = state.loopEnd ? `Bar ${state.loopEnd.barIndex + 1}` : 'To'
-    if (document.activeElement !== loopEndSelect) {
-      loopEndSelect.value = state.interactionMode === 'setLoopEnd' ? 'set' : 'normal'
+    const endValue = state.interactionMode === 'setLoopEnd' ? 'set' : 'normal'
+    if (document.activeElement !== loopEndSelect || endValue === 'normal') {
+      loopEndSelect.value = endValue
     }
   }
 
@@ -293,54 +295,84 @@ const handleBeatSelection = (beat: Beat) => {
   if (!player) return
 
   if (state.interactionMode === 'setLoopStart') {
-    const nextStart = getBarStartLoopPoint(beat)
-    highlightedStartBeat = getBarFirstBeat(beat)
     const nextLoopEnd = state.loopEnd
     if (nextLoopEnd && highlightedEndBeat) {
-      const ordered = orderLoopPoints(nextStart, nextLoopEnd)
-      const startBeat = ordered.start.tick === nextStart.tick ? highlightedStartBeat : highlightedEndBeat
-      const endBeat = ordered.end.tick === nextLoopEnd.tick ? highlightedEndBeat : highlightedStartBeat
-      player.highlightRange(startBeat, endBeat)
-      player.setLoopRange(ordered.start.tick, ordered.end.tick)
-      setState({
-        loopStart: ordered.start,
-        loopEnd: ordered.end,
-        interactionMode: 'normal',
-        statusText: `Range start set to bar ${ordered.start.barIndex + 1}.`,
-      })
+      const clickedBar = beat.voice.bar.index
+      const endBar = nextLoopEnd.barIndex
+      if (clickedBar > endBar) {
+        highlightedStartBeat = getBarFirstBeat(highlightedEndBeat)
+        highlightedEndBeat = getBarLastBeat(beat)
+        const loopStart = getBarStartLoopPoint(highlightedStartBeat)
+        const loopEnd = getBarEndLoopPoint(beat)
+        player.highlightRange(highlightedStartBeat, highlightedEndBeat)
+        player.setLoopRange(loopStart.tick, loopEnd.tick)
+        setState({
+          loopStart,
+          loopEnd,
+          interactionMode: 'normal',
+          statusText: `Range start set to bar ${loopStart.barIndex + 1}.`,
+        })
+      } else {
+        highlightedStartBeat = getBarFirstBeat(beat)
+        const loopStart = getBarStartLoopPoint(beat)
+        player.highlightRange(highlightedStartBeat, highlightedEndBeat)
+        player.setLoopRange(loopStart.tick, nextLoopEnd.tick)
+        setState({
+          loopStart,
+          loopEnd: nextLoopEnd,
+          interactionMode: 'normal',
+          statusText: `Range start set to bar ${loopStart.barIndex + 1}.`,
+        })
+      }
     } else {
+      highlightedStartBeat = getBarFirstBeat(beat)
       player.highlightRange(highlightedStartBeat, getBarLastBeat(beat))
       setState({
-        loopStart: nextStart,
+        loopStart: getBarStartLoopPoint(beat),
         interactionMode: 'normal',
-        statusText: `Range start set to bar ${nextStart.barIndex + 1}.`,
+        statusText: `Range start set to bar ${beat.voice.bar.index + 1}.`,
       })
     }
     return
   }
 
   if (state.interactionMode === 'setLoopEnd') {
-    const nextEnd = getBarEndLoopPoint(beat)
-    highlightedEndBeat = getBarLastBeat(beat)
     const nextLoopStart = state.loopStart
     if (nextLoopStart && highlightedStartBeat) {
-      const ordered = orderLoopPoints(nextLoopStart, nextEnd)
-      const startBeat = ordered.start.tick === nextLoopStart.tick ? highlightedStartBeat : highlightedEndBeat
-      const endBeat = ordered.end.tick === nextEnd.tick ? highlightedEndBeat : highlightedStartBeat
-      player.highlightRange(startBeat, endBeat)
-      player.setLoopRange(ordered.start.tick, ordered.end.tick)
-      setState({
-        loopStart: ordered.start,
-        loopEnd: ordered.end,
-        interactionMode: 'normal',
-        statusText: `Range end set to bar ${ordered.end.barIndex + 1}.`,
-      })
+      const clickedBar = beat.voice.bar.index
+      const startBar = nextLoopStart.barIndex
+      if (clickedBar < startBar) {
+        highlightedEndBeat = getBarLastBeat(highlightedStartBeat)
+        highlightedStartBeat = getBarFirstBeat(beat)
+        const loopStart = getBarStartLoopPoint(beat)
+        const loopEnd = getBarEndLoopPoint(highlightedEndBeat)
+        player.highlightRange(highlightedStartBeat, highlightedEndBeat)
+        player.setLoopRange(loopStart.tick, loopEnd.tick)
+        setState({
+          loopStart,
+          loopEnd,
+          interactionMode: 'normal',
+          statusText: `Range end set to bar ${loopEnd.barIndex + 1}.`,
+        })
+      } else {
+        highlightedEndBeat = getBarLastBeat(beat)
+        const loopEnd = getBarEndLoopPoint(beat)
+        player.highlightRange(highlightedStartBeat, highlightedEndBeat)
+        player.setLoopRange(nextLoopStart.tick, loopEnd.tick)
+        setState({
+          loopStart: nextLoopStart,
+          loopEnd,
+          interactionMode: 'normal',
+          statusText: `Range end set to bar ${loopEnd.barIndex + 1}.`,
+        })
+      }
     } else {
+      highlightedEndBeat = getBarLastBeat(beat)
       player.highlightRange(getBarFirstBeat(beat), highlightedEndBeat)
       setState({
-        loopEnd: nextEnd,
+        loopEnd: getBarEndLoopPoint(beat),
         interactionMode: 'normal',
-        statusText: `Range end set to bar ${nextEnd.barIndex + 1}.`,
+        statusText: `Range end set to bar ${beat.voice.bar.index + 1}.`,
       })
     }
     return
