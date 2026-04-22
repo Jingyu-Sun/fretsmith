@@ -115,6 +115,7 @@ const syncUi = () => {
   const zoomSelect = document.querySelector<HTMLSelectElement>('#zoom-select')
   const notationSelect = document.querySelector<HTMLSelectElement>('#notation-select')
   const countInToggle = document.querySelector<HTMLButtonElement>('#count-in-toggle-btn')
+  const metronomeToggle = document.querySelector<HTMLButtonElement>('#metronome-toggle-btn')
   const trackSelect = document.querySelector<HTMLSelectElement>('#track-select')
   const toggleLoop = document.querySelector<HTMLButtonElement>('#toggle-loop')
 
@@ -138,6 +139,7 @@ const syncUi = () => {
   if (zoomSelect) zoomSelect.value = String(state.zoom)
   if (notationSelect) notationSelect.value = state.notationView
   if (countInToggle) countInToggle.classList.toggle('is-active', state.countInEnabled)
+  if (metronomeToggle) metronomeToggle.classList.toggle('is-active', state.metronomeEnabled)
   if (trackSelect) trackSelect.disabled = !currentScore
   if (toggleLoop) toggleLoop.disabled = !state.isLoaded
 
@@ -162,6 +164,7 @@ const bindUi = () => {
   const toggleLoop = document.querySelector<HTMLButtonElement>('#toggle-loop')
   const clearLoop = document.querySelector<HTMLButtonElement>('#clear-loop')
   const countInToggle = document.querySelector<HTMLButtonElement>('#count-in-toggle-btn')
+  const metronomeToggle = document.querySelector<HTMLButtonElement>('#metronome-toggle-btn')
   const trackSelect = document.querySelector<HTMLSelectElement>('#track-select')
 
   fileInput?.addEventListener('change', async (event) => {
@@ -219,6 +222,7 @@ const bindUi = () => {
   playToggle?.addEventListener('click', () => {
     if (!player) return
     player.setCountInEnabled(state.countInEnabled, state.countInVolume)
+    player.setMetronomeEnabled(state.metronomeEnabled, state.metronomeVolume)
     player.togglePlay()
   })
 
@@ -263,6 +267,12 @@ const bindUi = () => {
     const enabled = !state.countInEnabled
     player?.setCountInEnabled(enabled, state.countInVolume)
     setState({ countInEnabled: enabled })
+  })
+
+  metronomeToggle?.addEventListener('click', () => {
+    const enabled = !state.metronomeEnabled
+    player?.setMetronomeEnabled(enabled, state.metronomeVolume)
+    setState({ metronomeEnabled: enabled })
   })
 
   trackSelect?.addEventListener('change', (event) => {
@@ -425,6 +435,7 @@ try {
       player?.setZoom(state.zoom)
       player?.setNotationView(state.notationView)
       player?.setCountInEnabled(state.countInEnabled, state.countInVolume)
+      player?.setMetronomeEnabled(state.metronomeEnabled, state.metronomeVolume)
     },
     onPlayerPositionChanged: (args: { currentTime: number; endTime: number; currentTick: number }) => {
       setState({

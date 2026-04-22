@@ -119,6 +119,10 @@ export class PracticePlayer {
     this.api.countInVolume = enabled ? volume : 0
   }
 
+  setMetronomeEnabled(enabled: boolean, volume = 0.5) {
+    this.api.metronomeVolume = enabled ? volume : 0
+  }
+
   togglePlay() {
     this.api.playPause()
   }

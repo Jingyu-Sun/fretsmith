@@ -31,6 +31,8 @@ export type PracticeState = {
   loopEnd: LoopPoint | null
   countInEnabled: boolean
   countInVolume: number
+  metronomeEnabled: boolean
+  metronomeVolume: number
   selectedTrackIndexes: number[]
   trackStates: TrackControlState[]
   statusText: string
@@ -55,6 +57,8 @@ export const defaultPracticeState = (): PracticeState => ({
   loopEnd: null,
   countInEnabled: true,
   countInVolume: 0.75,
+  metronomeEnabled: false,
+  metronomeVolume: 0.5,
   selectedTrackIndexes: [0],
   trackStates: [],
   statusText: 'Choose a file to render the score and enable playback.',
