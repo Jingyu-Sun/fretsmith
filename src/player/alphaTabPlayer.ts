@@ -33,8 +33,8 @@ type PlayerCallbacks = {
   onRenderFinished: () => void
 }
 
-const soundFontUrl = '/alphatab/soundfont/sonivox.sf2'
-const fontDirectory = '/alphatab/font/'
+const soundFontUrl = `${import.meta.env.BASE_URL}alphatab/soundfont/sonivox.sf2`
+const fontDirectory = `${import.meta.env.BASE_URL}alphatab/font/`
 
 const notationViewToStaveProfile: Record<NotationView, StaveProfile> = {
   default: StaveProfile.Default,
