@@ -52,6 +52,12 @@ const icon = {
     </svg>`,
   countIn: `
     <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 3h8M8 21h8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+      <path d="M12 3v0c-3.3 0-6 3.6-6 8s2.7 8 6 8 6-3.6 6-8-2.7-8-6-8z" fill="none" stroke="currentColor" stroke-width="1.9" />
+      <path d="M12 3c2 2.5 2 5 0 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+    </svg>`,
+  speed: `
+    <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 4.5a7.5 7.5 0 1 1-7.5 7.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
       <path d="M12 8v4.2l3 1.8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
       <path d="m6.5 3.5-3 2.5 3 2.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
@@ -125,7 +131,7 @@ export const renderLayout = (state: PracticeState) => `
     </main>
 
     <footer class="transport-bar transport-bar-jitashe">
-      <div class="transport-left toolbar-group">
+      <div class="transport-playback">
         <button id="stop-button" class="toolbar-icon-button toolbar-transport-button" title="Rewind" ${state.isLoaded ? '' : 'disabled'}>
           <span class="toolbar-symbol" aria-hidden="true">${icon.rewind}</span>
           <span class="sr-only">Rewind</span>
@@ -134,6 +140,7 @@ export const renderLayout = (state: PracticeState) => `
           <span class="toolbar-symbol toolbar-symbol-strong" aria-hidden="true">${state.isPlaying ? icon.pause : icon.play}</span>
           <span class="sr-only">${state.isPlaying ? 'Pause' : 'Play'}</span>
         </button>
+        ${renderSelectShell('tempo-select', renderSpeedOptions(state.playbackSpeed), icon.speed, 'Tempo', 'tempo-pill')}
         <button id="count-in-toggle-btn" class="toolbar-icon-button toolbar-action-icon ${state.countInEnabled ? 'is-active' : ''}" title="Count-in">
           <span class="toolbar-symbol" aria-hidden="true">${icon.countIn}</span>
           <span class="sr-only">Count-in</span>
@@ -142,7 +149,12 @@ export const renderLayout = (state: PracticeState) => `
           <span class="toolbar-symbol" aria-hidden="true">${icon.metronome}</span>
           <span class="sr-only">Metronome</span>
         </button>
-        ${renderSelectShell('tempo-select', renderSpeedOptions(state.playbackSpeed), icon.countIn, 'Tempo', 'tempo-pill')}
+        <button id="toggle-loop" class="toolbar-icon-button toolbar-action-icon ${state.isLooping ? 'is-active' : ''}" title="Loop" ${state.isLoaded ? '' : 'disabled'}>
+          <span class="toolbar-symbol" aria-hidden="true">${icon.loop}</span>
+          <span class="sr-only">Toggle loop playback</span>
+        </button>
+      </div>
+      <div class="transport-settings">
         ${renderSelectShell('zoom-select', renderZoomOptions(state.zoom), icon.zoom, 'Zoom', 'zoom-pill')}
         ${renderSelectShell('notation-select', renderNotationOptions(state.notationView), icon.notation, 'Notation', 'notation-pill')}
         ${renderSelectShell(
@@ -154,31 +166,26 @@ export const renderLayout = (state: PracticeState) => `
           !state.trackStates.length,
         )}
       </div>
-      <div class="transport-right toolbar-group toolbar-actions">
-        <button id="toggle-loop" class="toolbar-icon-button toolbar-action-icon ${state.isLooping ? 'is-active' : ''}" title="Loop" ${state.isLoaded ? '' : 'disabled'}>
-          <span class="toolbar-symbol" aria-hidden="true">${icon.loop}</span>
-          <span class="sr-only">Toggle loop playback</span>
-        </button>
+      <div class="transport-loop">
         <div class="toolbar-range-group">
-          <span class="toolbar-range-label">Selected Range</span>
-          <div class="toolbar-select-pill loop-pill">
+          <div class="toolbar-select-pill loop-pill loop-pill-flat">
             <select id="set-loop-start" class="toolbar-select">
               <option value="normal" ${state.interactionMode === 'setLoopStart' ? '' : 'selected'}>${loopLabel(state.loopStart, 'From')}</option>
               <option value="set">Click score</option>
             </select>
           </div>
           <span class="toolbar-range-dash">&mdash;</span>
-          <div class="toolbar-select-pill loop-pill">
+          <div class="toolbar-select-pill loop-pill loop-pill-flat">
             <select id="set-loop-end" class="toolbar-select">
               <option value="normal" ${state.interactionMode === 'setLoopEnd' ? '' : 'selected'}>${loopLabel(state.loopEnd, 'To')}</option>
               <option value="set">Click score</option>
             </select>
           </div>
+          <button id="clear-loop" class="toolbar-icon-button toolbar-action-icon toolbar-clear-inline" title="Clear selected range" ${state.loopStart || state.loopEnd ? '' : 'disabled'}>
+            <span class="toolbar-symbol" aria-hidden="true">${icon.clear}</span>
+            <span class="sr-only">Clear selected range</span>
+          </button>
         </div>
-        <button id="clear-loop" class="toolbar-icon-button toolbar-action-icon" title="Clear selected range" ${state.loopStart || state.loopEnd ? '' : 'disabled'}>
-          <span class="toolbar-symbol" aria-hidden="true">${icon.clear}</span>
-          <span class="sr-only">Clear selected range</span>
-        </button>
       </div>
     </footer>
   </div>

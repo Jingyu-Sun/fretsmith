@@ -233,6 +233,7 @@ const bindUi = () => {
     } else {
       player?.seekToTick(0)
     }
+    document.querySelector('.alpha-container')?.scrollTo({ top: 0, behavior: 'smooth' })
   })
 
   setLoopStart?.addEventListener('change', (event) => {
