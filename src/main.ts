@@ -173,6 +173,7 @@ const bindUi = () => {
     shouldResetViewport = true
     highlightedStartBeat = null
     highlightedEndBeat = null
+    player.clearLoopRange()
     currentScore = null
     currentTracks = []
     lastTrackMixerKey = ''
@@ -395,6 +396,11 @@ try {
     onScoreLoaded: (score: Score) => {
       currentScore = score
       currentTracks = [score.tracks[0]]
+      player?.clearLoopRange()
+      const firstBeat = score.tracks[0].staves[0].bars[0].voices[0].beats[0]
+      if (firstBeat) {
+        player?.highlightRange(firstBeat, firstBeat)
+      }
       player?.renderTracks(currentTracks)
 
       const trackStates = score.tracks.map((track) => ({
@@ -447,6 +453,9 @@ try {
     onRenderFinished: () => {
       syncTrackMixer()
       applyLoopRangeToPlayer()
+      if (!highlightedStartBeat && !highlightedEndBeat) {
+        player?.clearHighlightedRange()
+      }
       if (shouldResetViewport) {
         shouldResetViewport = false
         player?.resetViewport()
