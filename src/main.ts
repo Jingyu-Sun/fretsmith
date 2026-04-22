@@ -47,7 +47,7 @@ const updateLoopDetails = () => {
   const toggleLoop = document.querySelector<HTMLButtonElement>('#toggle-loop')
   const clearLoop = document.querySelector<HTMLButtonElement>('#clear-loop')
 
-  if (loopStartSelect) {
+  if (loopStartSelect && !loopStartSelect.disabled) {
     loopStartSelect.options[0].text = state.loopStart ? `Bar ${state.loopStart.barIndex + 1}` : 'From'
     const startValue = state.interactionMode === 'setLoopStart' ? 'set' : 'normal'
     if (document.activeElement !== loopStartSelect || startValue === 'normal') {
@@ -55,7 +55,7 @@ const updateLoopDetails = () => {
     }
   }
 
-  if (loopEndSelect) {
+  if (loopEndSelect && !loopEndSelect.disabled) {
     loopEndSelect.options[0].text = state.loopEnd ? `Bar ${state.loopEnd.barIndex + 1}` : 'To'
     const endValue = state.interactionMode === 'setLoopEnd' ? 'set' : 'normal'
     if (document.activeElement !== loopEndSelect || endValue === 'normal') {
