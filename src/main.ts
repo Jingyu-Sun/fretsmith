@@ -49,12 +49,16 @@ const updateLoopDetails = () => {
 
   if (loopStartSelect) {
     loopStartSelect.options[0].text = state.loopStart ? `Bar ${state.loopStart.barIndex + 1}` : 'From'
-    loopStartSelect.value = state.interactionMode === 'setLoopStart' ? 'set' : 'normal'
+    if (document.activeElement !== loopStartSelect) {
+      loopStartSelect.value = state.interactionMode === 'setLoopStart' ? 'set' : 'normal'
+    }
   }
 
   if (loopEndSelect) {
     loopEndSelect.options[0].text = state.loopEnd ? `Bar ${state.loopEnd.barIndex + 1}` : 'To'
-    loopEndSelect.value = state.interactionMode === 'setLoopEnd' ? 'set' : 'normal'
+    if (document.activeElement !== loopEndSelect) {
+      loopEndSelect.value = state.interactionMode === 'setLoopEnd' ? 'set' : 'normal'
+    }
   }
 
   if (toggleLoop) {
@@ -79,9 +83,15 @@ const applyLoopRangeToPlayer = () => {
   }
 }
 
+let lastTrackMixerKey = ''
+
 const syncTrackMixer = () => {
   const trackSelect = document.querySelector<HTMLSelectElement>('#track-select')
   if (!trackSelect || !currentScore) return
+
+  const key = `${currentScore.tracks.length}:${state.selectedTrackIndexes.join(',')}`
+  if (key === lastTrackMixerKey) return
+  lastTrackMixerKey = key
 
   const options = currentScore.tracks
     .map((track) => {
@@ -129,6 +139,11 @@ const syncUi = () => {
   if (trackSelect) trackSelect.disabled = !currentScore
   if (toggleLoop) toggleLoop.disabled = !state.isLoaded
 
+  const loopStartSelect = document.querySelector<HTMLSelectElement>('#set-loop-start')
+  const loopEndSelect = document.querySelector<HTMLSelectElement>('#set-loop-end')
+  if (loopStartSelect) loopStartSelect.disabled = !state.isLoaded || state.isPlaying
+  if (loopEndSelect) loopEndSelect.disabled = !state.isLoaded || state.isPlaying
+
   updateLoopDetails()
   syncTrackMixer()
 }
@@ -158,6 +173,7 @@ const bindUi = () => {
     highlightedEndBeat = null
     currentScore = null
     currentTracks = []
+    lastTrackMixerKey = ''
     setState({
       ...defaultPracticeState(),
       fileName: file.name,
