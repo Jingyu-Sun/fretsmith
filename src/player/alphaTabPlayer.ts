@@ -5,6 +5,7 @@ import {
   StaveProfile,
   type IEventEmitterOfT,
   type model,
+  type synth,
 } from '@coderline/alphatab'
 
 import type { NotationView } from '../state/practiceState'
@@ -12,6 +13,8 @@ import type { NotationView } from '../state/practiceState'
 type Beat = model.Beat
 type Score = model.Score
 type Track = model.Track
+type FlatSyncPoint = model.FlatSyncPoint
+type IExternalMediaSynthOutput = synth.IExternalMediaSynthOutput
 
 type PositionChangedEventArgs = {
   currentTime: number
@@ -47,9 +50,12 @@ const notationViewToStaveProfile: Record<NotationView, StaveProfile> = {
 export class PracticePlayer {
   readonly api: AlphaTabApi
   readonly container: HTMLElement
+  readonly playerMode: PlayerMode
 
-  constructor(container: HTMLElement, callbacks: PlayerCallbacks) {
+  constructor(container: HTMLElement, callbacks: PlayerCallbacks, playerMode = PlayerMode.EnabledAutomatic) {
     this.container = container
+    this.playerMode = playerMode
+    const isExternalMedia = playerMode === PlayerMode.EnabledExternalMedia
     this.api = new AlphaTabApi(container, {
       core: {
         includeNoteBounds: true,
@@ -72,8 +78,8 @@ export class PracticePlayer {
         scrollOffsetY: -30,
         scrollMode: 1,
         scrollSpeed: 200,
-        soundFont: soundFontUrl,
-        playerMode: PlayerMode.EnabledAutomatic,
+        soundFont: isExternalMedia ? undefined : soundFontUrl,
+        playerMode,
       },
     })
 
@@ -185,6 +191,17 @@ export class PracticePlayer {
 
   changeTrackMute(track: Track, mute: boolean) {
     this.api.changeTrackMute([track], mute)
+  }
+
+  getExternalMediaOutput(): IExternalMediaSynthOutput {
+    return this.api.player!.output as IExternalMediaSynthOutput
+  }
+
+  applySyncPoints(syncPoints: FlatSyncPoint[]) {
+    const score = this.api.score
+    if (!score) return
+    score.applyFlatSyncPoints(syncPoints)
+    this.api.render()
   }
 
   destroy() {

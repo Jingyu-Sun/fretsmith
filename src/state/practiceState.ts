@@ -1,5 +1,6 @@
-export type InteractionMode = 'normal' | 'setLoopStart' | 'setLoopEnd'
+export type InteractionMode = 'normal' | 'setLoopStart' | 'setLoopEnd' | 'setSyncPoint' | 'editSyncPoint'
 export type NotationView = 'default' | 'score-tab' | 'score' | 'tab' | 'tab-mixed'
+export type PlaybackMode = 'gp' | 'mp3'
 
 export type LoopPoint = {
   barIndex: number
@@ -13,6 +14,13 @@ export type TrackControlState = {
   solo: boolean
 }
 
+export type SyncPoint = {
+  barIndex: number
+  barPosition: number
+  barOccurence: number
+  millisecondOffset: number
+}
+
 export type PracticeState = {
   fileName: string
   songTitle: string
@@ -20,6 +28,7 @@ export type PracticeState = {
   isPlaying: boolean
   isLooping: boolean
   interactionMode: InteractionMode
+  playbackMode: PlaybackMode
   playbackSpeed: number
   zoom: number
   notationView: NotationView
@@ -35,6 +44,14 @@ export type PracticeState = {
   metronomeVolume: number
   selectedTrackIndexes: number[]
   trackStates: TrackControlState[]
+  mp3FileName: string | null
+  mp3Loaded: boolean
+  syncPoints: SyncPoint[]
+  syncPointPendingBar: number | null
+  selectedSyncPointIndex: number | null
+  syncPointEditorVisible: boolean
+  syncPointPreviewLooping: boolean
+  waveformVisible: boolean
   statusText: string
   errorText: string | null
 }
@@ -46,6 +63,7 @@ export const defaultPracticeState = (): PracticeState => ({
   isPlaying: false,
   isLooping: false,
   interactionMode: 'normal',
+  playbackMode: 'gp',
   playbackSpeed: 1,
   zoom: 1,
   notationView: 'tab',
@@ -61,6 +79,14 @@ export const defaultPracticeState = (): PracticeState => ({
   metronomeVolume: 0.5,
   selectedTrackIndexes: [0],
   trackStates: [],
+  mp3FileName: null,
+  mp3Loaded: false,
+  syncPoints: [],
+  syncPointPendingBar: null,
+  selectedSyncPointIndex: null,
+  syncPointEditorVisible: false,
+  syncPointPreviewLooping: false,
+  waveformVisible: false,
   statusText: 'Choose a file to render the score and enable playback.',
   errorText: null,
 })
