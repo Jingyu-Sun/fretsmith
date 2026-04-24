@@ -117,7 +117,7 @@ const rewindPlayback = () => {
   seekPlaybackToTick(targetTick, targetAudioSeconds)
 
   const selectedPoint = getSelectedSyncPoint()
-  if (state.interactionMode === 'editSyncPoint' && selectedPoint) {
+  if (state.syncEditorMode !== 'idle' && selectedPoint) {
     highlightSyncPointOnScore(selectedPoint.barIndex, selectedPoint.barPosition)
   }
 
@@ -127,7 +127,7 @@ const rewindPlayback = () => {
 const togglePlayback = () => {
   if (!player) return
 
-  if (state.syncPointPreviewLooping) {
+  if (state.syncEditorMode === 'previewing') {
     stopPreview()
   }
 
@@ -290,7 +290,7 @@ const updateSyncPointEditorUi = () => {
     state.syncPointEditorVisible,
     state.syncPoints.length,
     state.selectedSyncPointIndex,
-    state.syncPointPreviewLooping,
+    state.syncEditorMode === 'previewing',
     selectedPoint?.millisecondOffset ?? '',
     selectedPoint?.barIndex ?? '',
     selectedPoint?.barPosition ?? '',
@@ -482,7 +482,7 @@ const bindUi = () => {
 
   const toggleSyncEditor = document.querySelector<HTMLButtonElement>('#toggle-sync-editor')
   toggleSyncEditor?.addEventListener('click', () => {
-    if (state.syncPointPreviewLooping) {
+    if (state.syncEditorMode === 'previewing') {
       stopPreview()
     }
 
@@ -498,7 +498,7 @@ const bindUi = () => {
       return
     }
 
-    setState({ syncPointEditorVisible: true })
+    setState({ syncPointEditorVisible: true, syncEditorMode: state.selectedSyncPointIndex !== null ? 'selected' : 'idle' })
   })
 
   document.addEventListener('click', (e) => {
@@ -643,7 +643,7 @@ const bindUi = () => {
   }
 
   document.addEventListener('keydown', (e) => {
-    if (state.interactionMode !== 'editSyncPoint' || state.selectedSyncPointIndex === null) return
+    if (state.syncEditorMode === 'idle' || state.selectedSyncPointIndex === null) return
     if (!e.ctrlKey && !e.metaKey) return
 
     if (e.key === 'ArrowLeft') {
@@ -956,7 +956,7 @@ const loadMp3File = async (file: File) => {
     }
 
     if (state.playbackMode === 'mp3' && player && wavesurfer) {
-      const isEditingPaused = state.interactionMode === 'editSyncPoint' && wavesurfer.paused
+      const isEditingPaused = state.syncEditorMode !== 'idle' && wavesurfer.paused
       if (!isEditingPaused) {
         player.getExternalMediaOutput().updatePosition(wavesurfer.currentTime * 1000)
       }
@@ -1067,7 +1067,7 @@ const selectSyncPoint = (index: number) => {
   setState({
     selectedSyncPointIndex: index,
     syncPointEditorVisible: true,
-    interactionMode: 'editSyncPoint',
+    syncEditorMode: 'selected',
   })
 
   const tick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
@@ -1106,7 +1106,7 @@ const addSyncPoint = () => {
     syncPoints: points,
     selectedSyncPointIndex: newIndex >= 0 ? newIndex : null,
     syncPointEditorVisible: true,
-    interactionMode: 'editSyncPoint',
+    syncEditorMode: 'selected',
     statusText: `Sync point added at ${formatTick(currentScore, currentTick)}`,
   })
 
@@ -1254,7 +1254,7 @@ const stopPreview = () => {
     seekAudioTo(point.millisecondOffset / 1000)
   }
 
-  setState({ syncPointPreviewLooping: false })
+  setState({ syncEditorMode: 'selected' })
 }
 
 let previewDurationMs = 1000
@@ -1268,7 +1268,7 @@ const previewSyncPoint = (durationMs: number) => {
   stopPreviewLoop()
 
   previewDurationMs = durationMs
-  setState({ syncPointPreviewLooping: true, isPlaying: false })
+  setState({ syncEditorMode: 'previewing', isPlaying: false })
 
   const tick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
   seekPlaybackToTick(tick, point.millisecondOffset / 1000)
@@ -1276,7 +1276,7 @@ const previewSyncPoint = (durationMs: number) => {
 
   const scheduleNext = () => {
     previewLoopTimeout = window.setTimeout(() => {
-      if (!state.syncPointPreviewLooping || !wavesurfer || !currentScore || !player) return
+      if (state.syncEditorMode !== 'previewing' || !wavesurfer || !currentScore || !player) return
       const nextPoint = getSelectedSyncPoint()
       if (!nextPoint) return
       pauseAudioPlayback()

@@ -1,6 +1,7 @@
-export type InteractionMode = 'normal' | 'setLoopStart' | 'setLoopEnd' | 'setSyncPoint' | 'editSyncPoint'
+export type InteractionMode = 'normal' | 'setLoopStart' | 'setLoopEnd' | 'setSyncPoint'
 export type NotationView = 'default' | 'score-tab' | 'score' | 'tab' | 'tab-mixed'
 export type PlaybackMode = 'gp' | 'mp3'
+export type SyncEditorMode = 'idle' | 'selected' | 'previewing'
 
 export type LoopPoint = {
   barIndex: number
@@ -50,7 +51,7 @@ export type PracticeState = {
   syncPointPendingBar: number | null
   selectedSyncPointIndex: number | null
   syncPointEditorVisible: boolean
-  syncPointPreviewLooping: boolean
+  syncEditorMode: SyncEditorMode
   waveformVisible: boolean
   statusText: string
   errorText: string | null
@@ -85,7 +86,7 @@ export const defaultPracticeState = (): PracticeState => ({
   syncPointPendingBar: null,
   selectedSyncPointIndex: null,
   syncPointEditorVisible: false,
-  syncPointPreviewLooping: false,
+  syncEditorMode: 'idle',
   waveformVisible: false,
   statusText: 'Choose a file to render the score and enable playback.',
   errorText: null,
