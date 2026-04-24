@@ -19,7 +19,7 @@ import {
 import { renderLayout } from './ui/layout'
 import { getBarStartLoopPoint, getBarEndLoopPoint, getBarFirstBeat, getBarLastBeat } from './ui/loopSelection'
 import { updateSyncMarkerPositions } from './ui/waveformPanel'
-import { formatTick, barPositionToTick, tickToBarPosition } from './utils/tickUtils'
+import { formatTick, barPositionToTick, tickToBarPosition, findBarContainingTick } from './utils/tickUtils'
 import { renderSyncPointEditor } from './ui/syncPointEditor'
 
 const app = document.querySelector<HTMLDivElement>('#app')
@@ -48,6 +48,30 @@ const computeScorePositions = (): string[] => {
     const tick = barPositionToTick(currentScore!, sp.barIndex, sp.barPosition)
     return formatTick(currentScore!, tick)
   })
+}
+
+const computeSelectedScoreDetail = (): { barNumber: number; beatNumber: string; tick: number } | null => {
+  if (!currentScore || state.selectedSyncPointIndex === null) return null
+  const point = state.syncPoints[state.selectedSyncPointIndex]
+  if (!point) return null
+
+  const tick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
+  const bar = findBarContainingTick(currentScore, tick)
+  if (!bar) return null
+
+  const barStart = bar.start
+  const barDuration = bar.calculateDuration()
+  const beatsInBar = bar.timeSignatureNumerator
+  const ticksPerBeat = barDuration / beatsInBar
+  const tickInBar = tick - barStart
+  const beatNumber = ticksPerBeat > 0 ? tickInBar / ticksPerBeat + 1 : 1
+  const tickInBeat = ticksPerBeat > 0 ? Math.round(tickInBar % ticksPerBeat) : 0
+
+  return {
+    barNumber: bar.index + 1,
+    beatNumber: beatNumber < 1.01 ? '1' : beatNumber.toFixed(beatNumber % 1 < 0.01 ? 0 : 2),
+    tick: tickInBeat,
+  }
 }
 
 const setState = (updater: Partial<PracticeState> | ((current: PracticeState) => PracticeState)) => {
@@ -175,25 +199,12 @@ const syncUi = () => {
 
 const syncWaveformUi = () => {
   const mp3Toggle = document.querySelector<HTMLButtonElement>('#mp3-toggle')
-  const syncModeToggle = document.querySelector<HTMLButtonElement>('#sync-mode-toggle')
-  const clearSyncBtn = document.querySelector<HTMLButtonElement>('#clear-sync-points')
   const toggleSyncEditorBtn = document.querySelector<HTMLButtonElement>('#toggle-sync-editor')
   const panel = document.querySelector<HTMLElement>('.audio-sync-panel')
-  const statusEl = document.querySelector<HTMLElement>('#audio-sync-status')
-  const mp3PlayToggle = document.querySelector<HTMLButtonElement>('#mp3-play-toggle')
-
-  console.log('syncWaveformUi called, panel found:', !!panel, 'waveformVisible:', state.waveformVisible)
 
   if (mp3Toggle) {
     mp3Toggle.classList.toggle('is-active', state.waveformVisible)
     mp3Toggle.disabled = !state.isLoaded
-  }
-  if (syncModeToggle) {
-    syncModeToggle.classList.toggle('is-active', state.interactionMode === 'setSyncPoint')
-    syncModeToggle.disabled = !state.mp3Loaded
-  }
-  if (clearSyncBtn) {
-    clearSyncBtn.disabled = state.syncPoints.length === 0
   }
   if (toggleSyncEditorBtn) {
     toggleSyncEditorBtn.classList.toggle('is-active', state.syncPointEditorVisible)
@@ -201,46 +212,34 @@ const syncWaveformUi = () => {
   }
   if (panel) {
     panel.classList.toggle('is-visible', state.waveformVisible)
-    console.log('Panel classes after toggle:', panel.className)
-  }
-  if (mp3PlayToggle) {
-    mp3PlayToggle.disabled = !state.mp3Loaded
-    const symbolSpan = mp3PlayToggle.querySelector('.toolbar-symbol')
-    if (symbolSpan && wavesurfer) {
-      symbolSpan.innerHTML = wavesurfer.paused
-        ? '<svg class="toolbar-svg" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7Z" fill="currentColor"/></svg>'
-        : '<svg class="toolbar-svg" viewBox="0 0 24 24"><rect x="7" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="13" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>'
-    }
-  }
-  if (statusEl) {
-    if (state.interactionMode === 'setSyncPoint') {
-      statusEl.textContent = 'Scrub to position, then click a bar in the score'
-    } else if (state.syncPoints.length > 0) {
-      statusEl.textContent = `${state.syncPoints.length} sync point${state.syncPoints.length === 1 ? '' : 's'}`
-    } else {
-      statusEl.textContent = ''
-    }
   }
 
   updateSyncPointEditorUi()
 }
 
+let lastSyncEditorKey = ''
+
 const updateSyncPointEditorUi = () => {
   const editorContainer = document.querySelector('.audio-sync-panel')
   if (!editorContainer) return
 
+  const editorKey = `${state.syncPointEditorVisible}:${state.syncPoints.length}:${state.selectedSyncPointIndex}:${JSON.stringify(state.syncPoints)}`
+  if (editorKey === lastSyncEditorKey) return
+  lastSyncEditorKey = editorKey
+
   const scorePositions = computeScorePositions()
+  const scoreDetail = computeSelectedScoreDetail()
   const existingEditor = editorContainer.querySelector('.sync-point-editor')
-  const existingHint = editorContainer.querySelector('.audio-sync-hint')
 
   if (existingEditor) {
     existingEditor.remove()
   }
 
-  const editorHtml = renderSyncPointEditor(state, scorePositions)
+  const editorHtml = renderSyncPointEditor(state, scorePositions, scoreDetail)
 
-  if (editorHtml && existingHint) {
-    existingHint.insertAdjacentHTML('beforebegin', editorHtml)
+  const timeline = editorContainer.querySelector('.audio-timeline')
+  if (editorHtml && timeline) {
+    timeline.insertAdjacentHTML('afterend', editorHtml)
   }
 }
 
@@ -265,6 +264,7 @@ const bindUi = () => {
     if (!file || !player) return
 
     pendingFile = file
+    syncManager = null
     shouldResetViewport = true
     highlightedStartBeat = null
     highlightedEndBeat = null
@@ -404,9 +404,6 @@ const bindUi = () => {
 
   const mp3FileInput = document.querySelector<HTMLInputElement>('#mp3-file-input')
   const mp3Toggle = document.querySelector<HTMLButtonElement>('#mp3-toggle')
-  const mp3PlayToggle = document.querySelector<HTMLButtonElement>('#mp3-play-toggle')
-  const syncModeToggle = document.querySelector<HTMLButtonElement>('#sync-mode-toggle')
-  const clearSyncPoints = document.querySelector<HTMLButtonElement>('#clear-sync-points')
   const audioTimeline = document.querySelector<HTMLElement>('#audio-timeline')
 
   mp3FileInput?.addEventListener('change', async (event) => {
@@ -418,45 +415,7 @@ const bindUi = () => {
   })
 
   mp3Toggle?.addEventListener('click', () => {
-    const newValue = !state.waveformVisible
-    console.log('MP3 toggle clicked, setting waveformVisible to:', newValue)
-    setState({ waveformVisible: newValue })
-  })
-
-  mp3PlayToggle?.addEventListener('click', () => {
-    if (!wavesurfer) return
-    if (wavesurfer.paused) {
-      wavesurfer.play()
-    } else {
-      wavesurfer.pause()
-    }
-    syncWaveformUi()
-  })
-
-  syncModeToggle?.addEventListener('click', () => {
-    if (state.interactionMode === 'setSyncPoint') {
-      setState({ interactionMode: 'normal', syncPointPendingBar: null, statusText: 'Sync mode off.' })
-    } else {
-      highlightedSyncPointBeat = null
-      player?.clearHighlightedRange()
-      setState({ interactionMode: 'setSyncPoint', statusText: 'Scrub to the right position, then click a bar in the score.' })
-    }
-  })
-
-  clearSyncPoints?.addEventListener('click', () => {
-    syncManager?.clear()
-    highlightedSyncPointBeat = null
-    player?.clearHighlightedRange()
-    setState({
-      syncPoints: [],
-      syncPointPendingBar: null,
-      selectedSyncPointIndex: null,
-      syncPointEditorVisible: false,
-      interactionMode: state.interactionMode === 'setSyncPoint' ? 'normal' : state.interactionMode,
-      statusText: 'Sync points cleared.',
-    })
-    refreshSyncMarkers([])
-    ensureCorrectPlaybackMode()
+    setState({ waveformVisible: !state.waveformVisible })
   })
 
   const toggleSyncEditor = document.querySelector<HTMLButtonElement>('#toggle-sync-editor')
@@ -477,6 +436,21 @@ const bindUi = () => {
 
     if (target.closest('#add-sync-point')) {
       addSyncPoint()
+      return
+    }
+
+    if (target.closest('#clear-sync-points-editor')) {
+      syncManager?.clear()
+      highlightedSyncPointBeat = null
+      player?.clearHighlightedRange()
+      setState({
+        syncPoints: [],
+        syncPointPendingBar: null,
+        selectedSyncPointIndex: null,
+        statusText: 'Sync points cleared.',
+      })
+      refreshSyncMarkers([])
+      ensureCorrectPlaybackMode()
       return
     }
 
@@ -545,11 +519,6 @@ const bindUi = () => {
 
     if (target.closest('#preview-2s')) {
       previewSyncPoint(2000)
-      return
-    }
-
-    if (target.closest('#preview-loop')) {
-      togglePreviewLoop()
       return
     }
 
@@ -761,8 +730,10 @@ const makePlayerCallbacks = () => ({
     player?.renderTracks(currentTracks)
 
     let restoredSyncPoints: SyncPoint[] = []
-    if (pendingFile) {
-      syncManager = new SyncManager(pendingFile.name)
+    const loadedFile = pendingFile
+    pendingFile = null
+    if (loadedFile && !syncManager) {
+      syncManager = new SyncManager(loadedFile.name)
       restoredSyncPoints = syncManager.getPoints()
     }
 
@@ -775,8 +746,8 @@ const makePlayerCallbacks = () => ({
     setState((current) => ({
       ...current,
       isLoaded: true,
-      fileName: pendingFile?.name ?? current.fileName,
-      songTitle: normalizeLabel(score.title, pendingFile?.name || 'Untitled song'),
+      fileName: loadedFile?.name ?? current.fileName,
+      songTitle: normalizeLabel(score.title, loadedFile?.name || 'Untitled song'),
       endTimeMs: player?.api.endTime ?? 0,
       trackStates,
       selectedTrackIndexes: [score.tracks[0].index],
@@ -796,11 +767,9 @@ const makePlayerCallbacks = () => ({
     player?.setMetronomeEnabled(state.metronomeEnabled, state.metronomeVolume)
   },
   onPlayerPositionChanged: (args: { currentTime: number; endTime: number; currentTick: number }) => {
-    setState({
-      currentTimeMs: args.currentTime,
-      endTimeMs: args.endTime,
-      currentBeatTick: args.currentTick,
-    })
+    state = { ...state, currentTimeMs: args.currentTime, endTimeMs: args.endTime, currentBeatTick: args.currentTick }
+    const toolbarTime = document.querySelector<HTMLElement>('#toolbar-time')
+    if (toolbarTime) toolbarTime.textContent = `${formatMillis(state.currentTimeMs)} / ${formatMillis(state.endTimeMs)}`
   },
   onPlayingStateChanged: (isPlaying: boolean) => {
     setState({ isPlaying, statusText: isPlaying ? 'Playback running.' : state.statusText })
@@ -808,7 +777,7 @@ const makePlayerCallbacks = () => ({
   onActiveBeatsChanged: (beats: Beat[]) => {
     const firstBeat = beats[0]
     if (!firstBeat) return
-    setState({ currentBarIndex: firstBeat.voice.bar.index })
+    state = { ...state, currentBarIndex: firstBeat.voice.bar.index }
   },
   onBeatMouseDown: (beat: Beat) => {
     handleBeatSelection(beat)
@@ -893,7 +862,10 @@ const loadMp3File = async (file: File) => {
 
   wavesurfer.addEventListener('timeupdate', () => {
     if (state.playbackMode === 'mp3' && player && wavesurfer) {
-      player.getExternalMediaOutput().updatePosition(wavesurfer.currentTime * 1000)
+      const isEditingPaused = state.interactionMode === 'editSyncPoint' && wavesurfer.paused
+      if (!isEditingPaused) {
+        player.getExternalMediaOutput().updatePosition(wavesurfer.currentTime * 1000)
+      }
     }
     updateTimelineScrubber()
   })
@@ -964,6 +936,33 @@ const refreshSyncMarkers = (points: SyncPoint[]) => {
   updateSyncMarkerPositions(timeline, points, durationMs, state.selectedSyncPointIndex, selectSyncPoint)
 }
 
+const highlightSyncPointOnScore = (barIndex: number, barPosition: number) => {
+  if (!currentScore || !player || currentTracks.length === 0) return
+  const bar = currentScore.masterBars[barIndex]
+  if (!bar) return
+  const staff = currentTracks[0].staves[0]
+  if (!staff) return
+  const barStaff = staff.bars[barIndex]
+  if (!barStaff || barStaff.voices.length === 0) return
+  const voice = barStaff.voices[0]
+  if (voice.beats.length === 0) return
+
+  const barDuration = bar.calculateDuration()
+  const targetTick = bar.start + barPosition * barDuration
+  let closestBeat = voice.beats[0]
+  let minDiff = Math.abs(closestBeat.absolutePlaybackStart - targetTick)
+  for (const beat of voice.beats) {
+    const diff = Math.abs(beat.absolutePlaybackStart - targetTick)
+    if (diff < minDiff) {
+      minDiff = diff
+      closestBeat = beat
+    }
+  }
+
+  highlightedSyncPointBeat = closestBeat
+  player.highlightRange(closestBeat, closestBeat)
+}
+
 const selectSyncPoint = (index: number) => {
   if (!syncManager || !currentScore || !player) return
   const point = syncManager.getPointByIndex(index)
@@ -975,43 +974,14 @@ const selectSyncPoint = (index: number) => {
     interactionMode: 'editSyncPoint',
   })
 
+  const tick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
+  player.seekToTick(tick)
+
   if (wavesurfer) {
     seekAudioTo(point.millisecondOffset / 1000)
   }
 
-  const tick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
-  player.seekToTick(tick)
-
-  // Find and highlight the beat at the sync point position
-  const bar = currentScore.masterBars[point.barIndex]
-  if (bar && currentTracks.length > 0) {
-    const track = currentTracks[0]
-    const staff = track.staves[0]
-    if (staff) {
-      const barStaff = staff.bars[point.barIndex]
-      if (barStaff && barStaff.voices.length > 0) {
-        const voice = barStaff.voices[0]
-        if (voice.beats.length > 0) {
-          // Find the beat closest to the sync point position
-          const barDuration = bar.calculateDuration()
-          const targetTick = bar.start + point.barPosition * barDuration
-          let closestBeat = voice.beats[0]
-          let minDiff = Math.abs(closestBeat.absolutePlaybackStart - targetTick)
-
-          for (const beat of voice.beats) {
-            const diff = Math.abs(beat.absolutePlaybackStart - targetTick)
-            if (diff < minDiff) {
-              minDiff = diff
-              closestBeat = beat
-            }
-          }
-
-          highlightedSyncPointBeat = closestBeat
-          player.highlightRange(closestBeat, closestBeat)
-        }
-      }
-    }
-  }
+  highlightSyncPointOnScore(point.barIndex, point.barPosition)
 
   refreshSyncMarkers(state.syncPoints)
 }
@@ -1114,6 +1084,8 @@ const nudgeScorePosition = (deltaTicks: number) => {
 
   setState({ syncPoints: points })
   player?.seekToTick(newTick)
+  if (wavesurfer) seekAudioTo(point.millisecondOffset / 1000)
+  highlightSyncPointOnScore(newBarPos.barIndex, newBarPos.barPosition)
   refreshSyncMarkers(points)
 }
 
@@ -1138,6 +1110,8 @@ const nudgeScoreByBar = (deltaBar: number) => {
 
   setState({ syncPoints: points })
   player?.seekToTick(targetBar.start)
+  if (wavesurfer) seekAudioTo(point.millisecondOffset / 1000)
+  highlightSyncPointOnScore(targetBarIndex, 0)
   refreshSyncMarkers(points)
 }
 
@@ -1170,6 +1144,8 @@ const nudgeScoreByBeat = (deltaBeat: number) => {
 
   setState({ syncPoints: points })
   player?.seekToTick(newTick)
+  if (wavesurfer) seekAudioTo(point.millisecondOffset / 1000)
+  highlightSyncPointOnScore(newBarPos.barIndex, newBarPos.barPosition)
   refreshSyncMarkers(points)
 }
 
@@ -1182,58 +1158,53 @@ const stopPreview = () => {
   }
 
   wavesurfer.pause()
+
+  if (syncManager && state.selectedSyncPointIndex !== null) {
+    const point = syncManager.getPointByIndex(state.selectedSyncPointIndex)
+    if (point) {
+      seekAudioTo(point.millisecondOffset / 1000)
+    }
+  }
+
   setState({ syncPointPreviewLooping: false })
 }
 
+let previewDurationMs = 1000
+
 const previewSyncPoint = (durationMs: number) => {
-  if (!wavesurfer || state.selectedSyncPointIndex === null) return
+  if (!wavesurfer || !currentScore || !player || state.selectedSyncPointIndex === null) return
   const point = syncManager?.getPointByIndex(state.selectedSyncPointIndex)
   if (!point) return
 
-  seekAudioTo(point.millisecondOffset / 1000)
-  wavesurfer.play()
-
   if (previewLoopTimeout !== null) {
     clearTimeout(previewLoopTimeout)
-  }
-
-  previewLoopTimeout = window.setTimeout(() => {
-    wavesurfer?.pause()
     previewLoopTimeout = null
-  }, durationMs)
-}
-
-const togglePreviewLoop = () => {
-  if (state.syncPointPreviewLooping) {
-    setState({ syncPointPreviewLooping: false })
-    if (previewLoopTimeout !== null) {
-      clearTimeout(previewLoopTimeout)
-      previewLoopTimeout = null
-    }
-    wavesurfer?.pause()
-  } else {
-    setState({ syncPointPreviewLooping: true })
-    startPreviewLoop()
   }
-}
+  wavesurfer.pause()
 
-const startPreviewLoop = () => {
-  if (!state.syncPointPreviewLooping || !wavesurfer || state.selectedSyncPointIndex === null) return
-  const point = syncManager?.getPointByIndex(state.selectedSyncPointIndex)
-  if (!point) return
+  previewDurationMs = durationMs
+  state = { ...state, syncPointPreviewLooping: true }
 
+  const tick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
+  player.seekToTick(tick)
   seekAudioTo(point.millisecondOffset / 1000)
-  wavesurfer.play()
+  wavesurfer.play().catch(() => {})
 
-  if (previewLoopTimeout !== null) {
-    clearTimeout(previewLoopTimeout)
+  const scheduleNext = () => {
+    previewLoopTimeout = window.setTimeout(() => {
+      if (!state.syncPointPreviewLooping || !wavesurfer || !currentScore || !player) return
+      const p = syncManager?.getPointByIndex(state.selectedSyncPointIndex!)
+      if (!p) return
+      wavesurfer.pause()
+      const t = barPositionToTick(currentScore, p.barIndex, p.barPosition)
+      player.seekToTick(t)
+      seekAudioTo(p.millisecondOffset / 1000)
+      wavesurfer.play().catch(() => {})
+      scheduleNext()
+    }, previewDurationMs)
   }
 
-  previewLoopTimeout = window.setTimeout(() => {
-    if (state.syncPointPreviewLooping) {
-      startPreviewLoop()
-    }
-  }, 1000)
+  scheduleNext()
 }
 
 

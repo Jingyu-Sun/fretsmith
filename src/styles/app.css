@@ -846,7 +846,7 @@ button {
   font-size: 0.78rem;
   font-weight: 700;
   color: #64748b;
-  min-width: 50px;
+  min-width: 44px;
 }
 
 .fine-tune-value-inline {
@@ -854,7 +854,54 @@ button {
   font-weight: 600;
   color: #334155;
   font-variant-numeric: tabular-nums;
-  padding: 0 8px;
+  padding: 0 4px;
+  text-align: center;
+}
+
+.fine-tune-nudge-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 999px;
+  padding: 2px 4px;
+}
+
+.fine-tune-nudge-value {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  padding: 0 4px;
+  min-width: 48px;
+  text-align: center;
+}
+
+.sync-point-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.sync-point-clear-btn:hover {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.sync-point-clear-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
   min-width: 120px;
   text-align: center;
 }

@@ -1,5 +1,6 @@
 import type { LoopPoint, NotationView, PracticeState } from '../state/practiceState'
 import { renderAudioSyncPanel } from './waveformPanel'
+import type { ScorePositionDetail } from './syncPointEditor'
 
 const loopLabel = (point: LoopPoint | null, fallback: string) =>
   point ? `Bar ${point.barIndex + 1}` : fallback
@@ -119,7 +120,7 @@ const renderSelectShell = (id: string, options: string, icon: string, label: str
   </div>
 `
 
-export const renderLayout = (state: PracticeState, scorePositions: string[] = []) => `
+export const renderLayout = (state: PracticeState, scorePositions: string[] = [], selectedScoreDetail: ScorePositionDetail | null = null) => `
   <div class="app-shell">
     <header class="topbar topbar-compact">
       <div class="brand-block">
@@ -148,7 +149,7 @@ export const renderLayout = (state: PracticeState, scorePositions: string[] = []
       </section>
     </main>
 
-    ${renderAudioSyncPanel(state, scorePositions)}
+    ${renderAudioSyncPanel(state, scorePositions, selectedScoreDetail)}
 
     <footer class="transport-bar transport-bar-jitashe">
       <div class="transport-playback">

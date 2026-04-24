@@ -201,7 +201,7 @@ export class PracticePlayer {
     const score = this.api.score
     if (!score) return
     score.applyFlatSyncPoints(syncPoints)
-    this.api.render()
+    this.api.updateSyncPoints()
   }
 
   destroy() {

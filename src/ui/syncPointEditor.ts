@@ -13,7 +13,7 @@ const renderSyncPointList = (
   scorePositions: string[],
 ) => {
   if (syncPoints.length === 0) {
-    return '<div class="sync-point-empty">No sync points yet. Click "Add Sync Point" to create one.</div>'
+    return '<div class="sync-point-empty">No sync points yet. Click "+ Add" to create one.</div>'
   }
 
   return syncPoints
@@ -40,9 +40,16 @@ const renderSyncPointList = (
     .join('')
 }
 
+export interface ScorePositionDetail {
+  barNumber: number
+  beatNumber: string
+  tick: number
+}
+
 export const renderSyncPointEditor = (
   state: PracticeState,
   scorePositions: string[],
+  selectedScoreDetail: ScorePositionDetail | null,
 ): string => {
   if (!state.syncPointEditorVisible) {
     return ''
@@ -51,31 +58,28 @@ export const renderSyncPointEditor = (
   const selectedPoint = state.selectedSyncPointIndex !== null
     ? state.syncPoints[state.selectedSyncPointIndex] ?? null
     : null
-  const selectedScorePos = state.selectedSyncPointIndex !== null
-    ? scorePositions[state.selectedSyncPointIndex] ?? ''
-    : ''
 
   const canAddMore = state.syncPoints.length < 10
   const audioTime = selectedPoint ? formatAudioTime(selectedPoint.millisecondOffset) : '0:00.000'
-  const isLooping = state.syncPointPreviewLooping
+  const hasSyncPoints = state.syncPoints.length > 0
 
   return `
     <div class="sync-point-editor">
       <div class="sync-point-header">
         <button class="sync-point-add-btn" id="add-sync-point" ${canAddMore ? '' : 'disabled'} title="${canAddMore ? 'Add sync point at current position' : 'Maximum 10 sync points reached'}">
-          <span>+ Add Sync Point</span>
+          <span>+ Add</span>
         </button>
-        <span class="sync-point-count">${state.syncPoints.length} / 10 points</span>
+        <button class="sync-point-clear-btn" id="clear-sync-points-editor" ${hasSyncPoints ? '' : 'disabled'} title="Clear all sync points">
+          <span>Clear All</span>
+        </button>
+        <span class="sync-point-count">${state.syncPoints.length} / 10</span>
         ${selectedPoint ? `
           <div class="sync-point-preview-controls">
-            <button class="fine-tune-btn fine-tune-btn-compact" id="preview-1s" title="Play 1 second from sync point">
+            <button class="fine-tune-btn fine-tune-btn-compact" id="preview-1s" title="Play 1 second from sync point (repeats)">
               <span>▶ 1s</span>
             </button>
-            <button class="fine-tune-btn fine-tune-btn-compact" id="preview-2s" title="Play 2 seconds from sync point">
+            <button class="fine-tune-btn fine-tune-btn-compact" id="preview-2s" title="Play 2 seconds from sync point (repeats)">
               <span>▶ 2s</span>
-            </button>
-            <button class="fine-tune-btn fine-tune-btn-compact ${isLooping ? 'is-active' : ''}" id="preview-loop" title="Toggle loop playback">
-              <span>↻ Loop</span>
             </button>
             <button class="fine-tune-btn fine-tune-btn-compact" id="preview-stop" title="Stop preview playback">
               <span>■ Stop</span>
@@ -89,39 +93,31 @@ export const renderSyncPointEditor = (
             ${renderSyncPointList(state.syncPoints, state.selectedSyncPointIndex, scorePositions)}
           </div>
         </div>
-        ${selectedPoint ? `
+        ${selectedPoint && selectedScoreDetail ? `
           <div class="sync-point-editor-column">
             <div class="fine-tune-row">
               <span class="fine-tune-label-inline">Audio:</span>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-audio-back" title="Move audio position back 100ms">
-                <span>◀ 100ms</span>
-              </button>
+              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-audio-back" title="−100ms">−</button>
               <span class="fine-tune-value-inline">${audioTime}</span>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-audio-forward" title="Move audio position forward 100ms">
-                <span>100ms ▶</span>
-              </button>
+              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-audio-forward" title="+100ms">+</button>
             </div>
             <div class="fine-tune-row">
               <span class="fine-tune-label-inline">Score:</span>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-bar-back" title="Move back 1 bar">
-                <span>◀ Bar</span>
-              </button>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-beat-back" title="Move back 1 beat">
-                <span>◀ Beat</span>
-              </button>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-tick-back" title="Move back 1 tick">
-                <span>◀ Tick</span>
-              </button>
-              <span class="fine-tune-value-inline">${selectedScorePos}</span>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-tick-forward" title="Move forward 1 tick">
-                <span>Tick ▶</span>
-              </button>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-beat-forward" title="Move forward 1 beat">
-                <span>Beat ▶</span>
-              </button>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-bar-forward" title="Move forward 1 bar">
-                <span>Bar ▶</span>
-              </button>
+              <div class="fine-tune-nudge-group">
+                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-bar-back" title="−1 bar">−</button>
+                <span class="fine-tune-nudge-value">Bar ${selectedScoreDetail.barNumber}</span>
+                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-bar-forward" title="+1 bar">+</button>
+              </div>
+              <div class="fine-tune-nudge-group">
+                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-beat-back" title="−1 beat">−</button>
+                <span class="fine-tune-nudge-value">Beat ${selectedScoreDetail.beatNumber}</span>
+                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-beat-forward" title="+1 beat">+</button>
+              </div>
+              <div class="fine-tune-nudge-group">
+                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-tick-back" title="−1 tick">−</button>
+                <span class="fine-tune-nudge-value">Tick ${selectedScoreDetail.tick}</span>
+                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-tick-forward" title="+1 tick">+</button>
+              </div>
             </div>
           </div>
         ` : ''}
