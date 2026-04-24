@@ -48,13 +48,11 @@ export const formatTick = (score: Score, tick: number): string => {
   const beatsInBar = bar.timeSignatureNumerator
   const ticksPerBeat = barDuration / beatsInBar
 
-  const beatNumber = ticksPerBeat > 0 ? tickInBar / ticksPerBeat : 0
-  const beatWhole = Math.floor(beatNumber)
-  const beatFraction = beatNumber - beatWhole
+  const beat = ticksPerBeat > 0 ? Math.floor(tickInBar / ticksPerBeat) + 1 : 1
+  const tickInBeat = ticksPerBeat > 0 ? Math.round(tickInBar % ticksPerBeat) : 0
 
-  if (beatFraction < 0.01) {
-    return `Bar ${bar.index + 1}, beat ${beatWhole + 1}`
-  } else {
-    return `Bar ${bar.index + 1}, beat ${(beatNumber + 1).toFixed(2)}`
+  if (tickInBeat === 0) {
+    return `Bar ${bar.index + 1}, beat ${beat}`
   }
+  return `Bar ${bar.index + 1}, beat ${beat}, tick ${tickInBeat}`
 }

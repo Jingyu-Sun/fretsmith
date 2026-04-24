@@ -348,6 +348,7 @@ const updateSyncPointEditorSelection = (editorSlot: HTMLElement, scoreDetail: Re
     item.classList.toggle('selected', isSelected)
     const radio = item.querySelector<HTMLElement>('.sync-point-radio')
     if (radio) radio.textContent = isSelected ? '●' : '○'
+    if (isSelected) item.scrollIntoView({ block: 'nearest' })
   })
 
   const editor = editorSlot.querySelector<HTMLElement>('.sync-point-editor')
@@ -391,6 +392,10 @@ const updateSyncPointEditorUi = () => {
     lastSyncEditorListKey = ''
     lastSyncEditorSelectionKey = ''
     editorSlot.innerHTML = renderSyncPointEditor(state, scorePositions, scoreDetail)
+    if (state.selectedSyncPointIndex !== null) {
+      const selectedItem = editorSlot.querySelector<HTMLElement>(`.sync-point-item[data-index="${state.selectedSyncPointIndex}"]`)
+      selectedItem?.scrollIntoView({ block: 'nearest' })
+    }
     return
   }
 
@@ -804,8 +809,15 @@ const handleBeatSelection = (beat: Beat) => {
       ? `Bar ${barIndex + 1}, beat ${Math.floor(barPosition * 4) + 1}`
       : `Bar ${barIndex + 1}`
 
+    const newIndex = points.findIndex(
+      (p) => p.barIndex === barIndex && p.millisecondOffset === millisecondOffset,
+    )
+
     setState({
       syncPoints: points,
+      selectedSyncPointIndex: newIndex >= 0 ? newIndex : null,
+      syncPointEditorVisible: true,
+      syncEditorMode: newIndex >= 0 ? 'selected' : 'idle',
       statusText: `Sync point set: ${beatLabel} → ${formatMillis(millisecondOffset)}. Keep clicking or exit sync mode.`,
     })
 
@@ -900,6 +912,18 @@ const handleBeatSelection = (beat: Beat) => {
 
   const barStart = getBarStartLoopPoint(beat)
   player.seekToTick(barStart.tick)
+
+  const syncIndex = state.syncPoints.findIndex((p) => p.barIndex === beat.voice.bar.index)
+  if (syncIndex >= 0 && state.syncPointEditorVisible) {
+    selectSyncPoint(syncIndex)
+    return
+  }
+
+  if (state.selectedSyncPointIndex !== null && state.syncPointEditorVisible) {
+    setState({ selectedSyncPointIndex: null, syncEditorMode: 'idle' })
+    refreshSyncMarkers(state.syncPoints)
+  }
+
   setState({ statusText: `Moved playback to bar ${barStart.barIndex + 1}.` })
 }
 
