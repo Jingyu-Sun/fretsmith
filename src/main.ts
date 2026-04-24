@@ -131,7 +131,8 @@ const togglePlayback = () => {
     stopPreview()
   }
 
-  player.setCountInEnabled(state.countInEnabled, state.countInVolume)
+  const isExternalMedia = state.playbackMode === 'mp3'
+  player.setCountInEnabled(!isExternalMedia && state.countInEnabled, state.countInVolume)
   player.setMetronomeEnabled(state.metronomeEnabled, state.metronomeVolume)
   player.togglePlay()
 }
