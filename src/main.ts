@@ -41,6 +41,9 @@ let wavesurfer: HTMLAudioElement | null = null
 let syncManager: SyncManager | null = null
 let loadedGpBuffer: ArrayBuffer | null = null
 let previewLoopTimeout: number | null = null
+let waveformTimeupdateHandler: (() => void) | null = null
+let ignoreNextAudioTimeupdate = false
+let mp3SessionPending = false
 
 const computeScorePositions = (): string[] => {
   if (!currentScore) return []
@@ -72,6 +75,65 @@ const computeSelectedScoreDetail = (): { barNumber: number; beatNumber: string; 
     beatNumber: beatNumber < 1.01 ? '1' : beatNumber.toFixed(beatNumber % 1 < 0.01 ? 0 : 2),
     tick: tickInBeat,
   }
+}
+
+const stopPreviewLoop = () => {
+  if (previewLoopTimeout !== null) {
+    clearTimeout(previewLoopTimeout)
+    previewLoopTimeout = null
+  }
+}
+
+const getSelectedSyncPoint = () => {
+  if (!syncManager || state.selectedSyncPointIndex === null) return null
+  return syncManager.getPointByIndex(state.selectedSyncPointIndex)
+}
+
+const pauseAudioPlayback = () => {
+  if (!wavesurfer) return
+  ignoreNextAudioTimeupdate = true
+  wavesurfer.pause()
+}
+
+const stopNormalPlayback = () => {
+  player?.stop()
+  pauseAudioPlayback()
+  setState({ isPlaying: false })
+}
+
+const seekPlaybackToTick = (tick: number, audioSeconds?: number) => {
+  player?.seekToTick(tick)
+  if (typeof audioSeconds === 'number') {
+    seekAudioTo(audioSeconds)
+  }
+}
+
+const rewindPlayback = () => {
+  stopPreviewLoop()
+  stopNormalPlayback()
+
+  const targetTick = state.loopStart?.tick ?? 0
+  const targetAudioSeconds = state.loopStart ? undefined : 0
+  seekPlaybackToTick(targetTick, targetAudioSeconds)
+
+  const selectedPoint = getSelectedSyncPoint()
+  if (state.interactionMode === 'editSyncPoint' && selectedPoint) {
+    highlightSyncPointOnScore(selectedPoint.barIndex, selectedPoint.barPosition)
+  }
+
+  document.querySelector('.alpha-container')?.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const togglePlayback = () => {
+  if (!player) return
+
+  if (state.syncPointPreviewLooping) {
+    stopPreview()
+  }
+
+  player.setCountInEnabled(state.countInEnabled, state.countInVolume)
+  player.setMetronomeEnabled(state.metronomeEnabled, state.metronomeVolume)
+  player.togglePlay()
 }
 
 const setState = (updater: Partial<PracticeState> | ((current: PracticeState) => PracticeState)) => {
@@ -223,7 +285,16 @@ const updateSyncPointEditorUi = () => {
   const editorContainer = document.querySelector('.audio-sync-panel')
   if (!editorContainer) return
 
-  const editorKey = `${state.syncPointEditorVisible}:${state.syncPoints.length}:${state.selectedSyncPointIndex}:${JSON.stringify(state.syncPoints)}`
+  const selectedPoint = state.selectedSyncPointIndex !== null ? state.syncPoints[state.selectedSyncPointIndex] ?? null : null
+  const editorKey = [
+    state.syncPointEditorVisible,
+    state.syncPoints.length,
+    state.selectedSyncPointIndex,
+    state.syncPointPreviewLooping,
+    selectedPoint?.millisecondOffset ?? '',
+    selectedPoint?.barIndex ?? '',
+    selectedPoint?.barPosition ?? '',
+  ].join(':')
   if (editorKey === lastSyncEditorKey) return
   lastSyncEditorKey = editorKey
 
@@ -320,20 +391,11 @@ const bindUi = () => {
   })
 
   playToggle?.addEventListener('click', () => {
-    if (!player) return
-    player.setCountInEnabled(state.countInEnabled, state.countInVolume)
-    player.setMetronomeEnabled(state.metronomeEnabled, state.metronomeVolume)
-    player.togglePlay()
+    togglePlayback()
   })
 
   stopButton?.addEventListener('click', () => {
-    player?.stop()
-    if (state.loopStart) {
-      player?.seekToTick(state.loopStart.tick)
-    } else {
-      player?.seekToTick(0)
-    }
-    document.querySelector('.alpha-container')?.scrollTo({ top: 0, behavior: 'smooth' })
+    rewindPlayback()
   })
 
   setLoopStart?.addEventListener('change', (event) => {
@@ -420,15 +482,23 @@ const bindUi = () => {
 
   const toggleSyncEditor = document.querySelector<HTMLButtonElement>('#toggle-sync-editor')
   toggleSyncEditor?.addEventListener('click', () => {
+    if (state.syncPointPreviewLooping) {
+      stopPreview()
+    }
+
     const willBeVisible = !state.syncPointEditorVisible
     if (!willBeVisible) {
       highlightedSyncPointBeat = null
       player?.clearHighlightedRange()
+      setState({
+        syncPointEditorVisible: false,
+        selectedSyncPointIndex: null,
+        interactionMode: 'normal',
+      })
+      return
     }
-    setState({
-      syncPointEditorVisible: willBeVisible,
-      selectedSyncPointIndex: willBeVisible ? state.selectedSyncPointIndex : null,
-    })
+
+    setState({ syncPointEditorVisible: true })
   })
 
   document.addEventListener('click', (e) => {
@@ -756,8 +826,12 @@ const makePlayerCallbacks = () => ({
       errorText: null,
     }))
 
-    if (state.syncPoints.length > 0 && player?.playerMode === PlayerMode.EnabledExternalMedia) {
-      player.applySyncPoints(state.syncPoints)
+    if (state.playbackMode === 'mp3' && player?.playerMode === PlayerMode.EnabledExternalMedia && wavesurfer) {
+      const output = player.getExternalMediaOutput()
+      output.handler = new AudioMediaHandler(wavesurfer)
+      if (state.syncPoints.length > 0) {
+        player.applySyncPoints(state.syncPoints)
+      }
     }
 
     player?.setPlaybackSpeed(state.playbackSpeed)
@@ -765,6 +839,12 @@ const makePlayerCallbacks = () => ({
     player?.setNotationView(state.notationView)
     player?.setCountInEnabled(state.countInEnabled, state.countInVolume)
     player?.setMetronomeEnabled(state.metronomeEnabled, state.metronomeVolume)
+
+    if (mp3SessionPending) {
+      mp3SessionPending = false
+      ignoreNextAudioTimeupdate = true
+      seekAudioTo(0)
+    }
   },
   onPlayerPositionChanged: (args: { currentTime: number; endTime: number; currentTick: number }) => {
     state = { ...state, currentTimeMs: args.currentTime, endTimeMs: args.endTime, currentBeatTick: args.currentTick }
@@ -804,6 +884,7 @@ const makePlayerCallbacks = () => ({
 const switchPlaybackMode = (mode: PlaybackMode) => {
   if (state.playbackMode === mode) return
 
+  stopPreviewLoop()
   player?.stop()
   player?.destroy()
   player = null
@@ -818,7 +899,7 @@ const switchPlaybackMode = (mode: PlaybackMode) => {
       output.handler = new AudioMediaHandler(wavesurfer)
     }
 
-    setState({ playbackMode: mode })
+    setState({ playbackMode: mode, isPlaying: false })
 
     if (loadedGpBuffer) {
       shouldResetViewport = true
@@ -833,8 +914,9 @@ const switchPlaybackMode = (mode: PlaybackMode) => {
 }
 
 const ensureCorrectPlaybackMode = () => {
-  const wantMp3 = state.mp3Loaded && state.syncPoints.length > 0 && loadedGpBuffer !== null
+  const wantMp3 = state.mp3Loaded && loadedGpBuffer !== null
   if (wantMp3 && state.playbackMode === 'gp') {
+    mp3SessionPending = true
     switchPlaybackMode('mp3')
   } else if (!wantMp3 && state.playbackMode === 'mp3') {
     switchPlaybackMode('gp')
@@ -842,8 +924,14 @@ const ensureCorrectPlaybackMode = () => {
 }
 
 const loadMp3File = async (file: File) => {
+  stopPreviewLoop()
+  stopNormalPlayback()
+
   if (wavesurfer) {
-    wavesurfer.pause()
+    if (waveformTimeupdateHandler) {
+      wavesurfer.removeEventListener('timeupdate', waveformTimeupdateHandler)
+      waveformTimeupdateHandler = null
+    }
     wavesurfer.removeAttribute('src')
     wavesurfer.load()
   } else {
@@ -860,7 +948,13 @@ const loadMp3File = async (file: File) => {
 
   URL.revokeObjectURL(url)
 
-  wavesurfer.addEventListener('timeupdate', () => {
+  waveformTimeupdateHandler = () => {
+    if (ignoreNextAudioTimeupdate) {
+      ignoreNextAudioTimeupdate = false
+      updateTimelineScrubber()
+      return
+    }
+
     if (state.playbackMode === 'mp3' && player && wavesurfer) {
       const isEditingPaused = state.interactionMode === 'editSyncPoint' && wavesurfer.paused
       if (!isEditingPaused) {
@@ -868,22 +962,24 @@ const loadMp3File = async (file: File) => {
       }
     }
     updateTimelineScrubber()
-  })
+  }
+  wavesurfer.addEventListener('timeupdate', waveformTimeupdateHandler)
 
   setState({
     mp3FileName: file.name,
     mp3Loaded: true,
+    waveformVisible: true,
     statusText: 'MP3 loaded. Scrub to find positions, then click bars in the score to set sync points.',
   })
 
   updateTimelineEndLabel()
+  ensureCorrectPlaybackMode()
 
   if (syncManager) {
     const points = syncManager.getPoints()
     if (points.length > 0) {
       setState({ syncPoints: points })
       refreshSyncMarkers(points)
-      ensureCorrectPlaybackMode()
     }
   }
 }
@@ -1150,20 +1246,12 @@ const nudgeScoreByBeat = (deltaBeat: number) => {
 }
 
 const stopPreview = () => {
-  if (!wavesurfer) return
+  stopPreviewLoop()
+  pauseAudioPlayback()
 
-  if (previewLoopTimeout !== null) {
-    clearTimeout(previewLoopTimeout)
-    previewLoopTimeout = null
-  }
-
-  wavesurfer.pause()
-
-  if (syncManager && state.selectedSyncPointIndex !== null) {
-    const point = syncManager.getPointByIndex(state.selectedSyncPointIndex)
-    if (point) {
-      seekAudioTo(point.millisecondOffset / 1000)
-    }
+  const point = getSelectedSyncPoint()
+  if (point) {
+    seekAudioTo(point.millisecondOffset / 1000)
   }
 
   setState({ syncPointPreviewLooping: false })
@@ -1172,33 +1260,28 @@ const stopPreview = () => {
 let previewDurationMs = 1000
 
 const previewSyncPoint = (durationMs: number) => {
-  if (!wavesurfer || !currentScore || !player || state.selectedSyncPointIndex === null) return
-  const point = syncManager?.getPointByIndex(state.selectedSyncPointIndex)
+  if (!wavesurfer || !currentScore || !player) return
+  const point = getSelectedSyncPoint()
   if (!point) return
 
-  if (previewLoopTimeout !== null) {
-    clearTimeout(previewLoopTimeout)
-    previewLoopTimeout = null
-  }
-  wavesurfer.pause()
+  stopNormalPlayback()
+  stopPreviewLoop()
 
   previewDurationMs = durationMs
-  state = { ...state, syncPointPreviewLooping: true }
+  setState({ syncPointPreviewLooping: true, isPlaying: false })
 
   const tick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
-  player.seekToTick(tick)
-  seekAudioTo(point.millisecondOffset / 1000)
+  seekPlaybackToTick(tick, point.millisecondOffset / 1000)
   wavesurfer.play().catch(() => {})
 
   const scheduleNext = () => {
     previewLoopTimeout = window.setTimeout(() => {
       if (!state.syncPointPreviewLooping || !wavesurfer || !currentScore || !player) return
-      const p = syncManager?.getPointByIndex(state.selectedSyncPointIndex!)
-      if (!p) return
-      wavesurfer.pause()
-      const t = barPositionToTick(currentScore, p.barIndex, p.barPosition)
-      player.seekToTick(t)
-      seekAudioTo(p.millisecondOffset / 1000)
+      const nextPoint = getSelectedSyncPoint()
+      if (!nextPoint) return
+      pauseAudioPlayback()
+      const nextTick = barPositionToTick(currentScore, nextPoint.barIndex, nextPoint.barPosition)
+      seekPlaybackToTick(nextTick, nextPoint.millisecondOffset / 1000)
       wavesurfer.play().catch(() => {})
       scheduleNext()
     }, previewDurationMs)
