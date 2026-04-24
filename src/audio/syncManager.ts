@@ -4,10 +4,12 @@ const storageKeyPrefix = 'fretsmith-sync:'
 
 export class SyncManager {
   private gpFileName: string
+  private mp3FileName: string
   private points: SyncPoint[] = []
 
-  constructor(gpFileName: string) {
+  constructor(gpFileName: string, mp3FileName: string) {
     this.gpFileName = gpFileName
+    this.mp3FileName = mp3FileName
     this.points = this.load()
   }
 
@@ -79,6 +81,6 @@ export class SyncManager {
   }
 
   private storageKey(): string {
-    return `${storageKeyPrefix}${this.gpFileName}`
+    return `${storageKeyPrefix}${this.gpFileName}|${this.mp3FileName}`
   }
 }

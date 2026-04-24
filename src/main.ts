@@ -460,9 +460,14 @@ const bindUi = () => {
       ...defaultPracticeState(),
       fileName: file.name,
       songTitle: file.name,
+      playbackMode: state.playbackMode,
       waveformVisible: state.waveformVisible,
+      mp3Loaded: state.mp3Loaded,
+      mp3FileName: state.mp3FileName,
       statusText: 'Loading Guitar Pro file…',
     })
+
+    refreshSyncMarkers([])
 
     try {
       const result = player.api.load(buffer)
@@ -902,8 +907,8 @@ const makePlayerCallbacks = () => ({
     let restoredSyncPoints: SyncPoint[] = []
     const loadedFile = pendingFile
     pendingFile = null
-    if (loadedFile && !syncManager) {
-      syncManager = new SyncManager(loadedFile.name)
+    if (loadedFile && !syncManager && state.mp3FileName) {
+      syncManager = new SyncManager(loadedFile.name, state.mp3FileName)
       restoredSyncPoints = syncManager.getPoints()
     }
 
@@ -925,6 +930,8 @@ const makePlayerCallbacks = () => ({
       statusText: 'Ready to play.',
       errorText: null,
     }))
+
+    refreshSyncMarkers(state.syncPoints)
 
     if (state.playbackMode === 'mp3' && player?.playerMode === PlayerMode.EnabledExternalMedia && wavesurfer) {
       const output = player.getExternalMediaOutput()
@@ -1075,12 +1082,11 @@ const loadMp3File = async (file: File) => {
   updateTimelineEndLabel()
   ensureCorrectPlaybackMode()
 
-  if (syncManager) {
+  if (state.fileName) {
+    syncManager = new SyncManager(state.fileName, file.name)
     const points = syncManager.getPoints()
-    if (points.length > 0) {
-      setState({ syncPoints: points })
-      refreshSyncMarkers(points)
-    }
+    setState({ syncPoints: points })
+    refreshSyncMarkers(points)
   }
 }
 
