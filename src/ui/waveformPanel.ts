@@ -8,7 +8,7 @@ export const renderAudioSyncPanel = (state: PracticeState, scorePositions: strin
       <label class="file-button file-button-small" for="mp3-file-input">Load MP3</label>
       <input id="mp3-file-input" type="file" accept=".mp3,.wav,.ogg,.m4a,.flac,.aac" />
       ${state.mp3FileName ? `<span class="audio-sync-filename">${state.mp3FileName}</span>` : ''}
-      <button id="toggle-sync-editor" class="toolbar-icon-button toolbar-action-icon audio-sync-btn ${state.syncPointEditorVisible ? 'is-active' : ''}" title="Toggle sync point editor" ${state.mp3Loaded ? '' : 'disabled'}>
+      <button id="toggle-sync-editor" class="toolbar-icon-button toolbar-transport-button audio-sync-btn ${state.syncPointEditorVisible ? 'is-active' : ''}" title="Toggle sync point editor" ${state.mp3Loaded ? '' : 'disabled'}>
         <span class="toolbar-symbol" aria-hidden="true">✎</span>
         <span class="sr-only">Toggle editor</span>
       </button>

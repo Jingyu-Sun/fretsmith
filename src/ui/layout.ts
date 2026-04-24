@@ -186,8 +186,8 @@ export const renderLayout = (state: PracticeState, scorePositions: string[] = []
           'toolbar-track-pill',
           !state.trackStates.length,
         )}
-        <button id="mp3-toggle" class="toolbar-icon-button toolbar-action-icon ${state.waveformVisible ? 'is-active' : ''}" title="MP3 audio sync" ${state.isLoaded ? '' : 'disabled'}>
-          <span class="toolbar-symbol" aria-hidden="true">${icon.waveform}</span>
+        <button id="mp3-toggle" class="toolbar-icon-button toolbar-pill-button ${state.waveformVisible ? 'is-active' : ''}" title="MP3 audio sync" ${state.isLoaded ? '' : 'disabled'}>
+          <span class="toolbar-pill-label" aria-hidden="true">MP3</span>
           <span class="sr-only">MP3 audio sync</span>
         </button>
       </div>
