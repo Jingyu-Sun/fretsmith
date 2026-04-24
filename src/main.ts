@@ -503,13 +503,15 @@ const bindUi = () => {
 
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement
+    const actionTarget = target.closest<HTMLElement>('[data-action]')
+    const action = actionTarget?.dataset.action
 
-    if (target.closest('#add-sync-point')) {
+    if (action === 'add-sync-point') {
       addSyncPoint()
       return
     }
 
-    if (target.closest('#clear-sync-points-editor')) {
+    if (action === 'clear-sync-points') {
       syncManager?.clear()
       highlightedSyncPointBeat = null
       player?.clearHighlightedRange()
@@ -517,6 +519,7 @@ const bindUi = () => {
         syncPoints: [],
         syncPointPendingBar: null,
         selectedSyncPointIndex: null,
+        syncEditorMode: 'idle',
         statusText: 'Sync points cleared.',
       })
       refreshSyncMarkers([])
@@ -524,75 +527,63 @@ const bindUi = () => {
       return
     }
 
-    if (target.closest('.sync-point-item') && !target.closest('.sync-point-delete')) {
-      const item = target.closest('.sync-point-item') as HTMLElement
-      const index = Number(item.dataset.index)
+    if (action === 'select-sync-point') {
+      const index = Number(actionTarget?.dataset.index)
       if (!isNaN(index)) {
         selectSyncPoint(index)
       }
       return
     }
 
-    if (target.closest('.sync-point-delete')) {
-      const btn = target.closest('.sync-point-delete') as HTMLElement
-      const index = Number(btn.dataset.index)
+    if (action === 'delete-sync-point') {
+      const index = Number(actionTarget?.dataset.index)
       if (!isNaN(index)) {
         deleteSyncPointByIndex(index)
       }
       return
     }
 
-    if (target.closest('#nudge-audio-back')) {
-      nudgeAudioPosition(-100)
+    if (action === 'nudge-audio') {
+      const deltaMs = Number(actionTarget?.dataset.deltaMs)
+      if (!isNaN(deltaMs)) {
+        nudgeAudioPosition(deltaMs)
+      }
       return
     }
 
-    if (target.closest('#nudge-audio-forward')) {
-      nudgeAudioPosition(100)
+    if (action === 'nudge-bar') {
+      const delta = Number(actionTarget?.dataset.delta)
+      if (!isNaN(delta)) {
+        nudgeScoreByBar(delta)
+      }
       return
     }
 
-    if (target.closest('#nudge-bar-back')) {
-      nudgeScoreByBar(-1)
+    if (action === 'nudge-beat') {
+      const delta = Number(actionTarget?.dataset.delta)
+      if (!isNaN(delta)) {
+        nudgeScoreByBeat(delta)
+      }
       return
     }
 
-    if (target.closest('#nudge-bar-forward')) {
-      nudgeScoreByBar(1)
+    if (action === 'nudge-tick') {
+      const delta = Number(actionTarget?.dataset.delta)
+      if (!isNaN(delta)) {
+        nudgeScorePosition(delta)
+      }
       return
     }
 
-    if (target.closest('#nudge-beat-back')) {
-      nudgeScoreByBeat(-1)
+    if (action === 'preview-sync-point') {
+      const durationMs = Number(actionTarget?.dataset.durationMs)
+      if (!isNaN(durationMs)) {
+        previewSyncPoint(durationMs)
+      }
       return
     }
 
-    if (target.closest('#nudge-beat-forward')) {
-      nudgeScoreByBeat(1)
-      return
-    }
-
-    if (target.closest('#nudge-tick-back')) {
-      nudgeScorePosition(-1)
-      return
-    }
-
-    if (target.closest('#nudge-tick-forward')) {
-      nudgeScorePosition(1)
-      return
-    }
-
-    if (target.closest('#preview-1s')) {
-      previewSyncPoint(1000)
-      return
-    }
-
-    if (target.closest('#preview-2s')) {
-      previewSyncPoint(2000)
-      return
-    }
-
-    if (target.closest('#preview-stop')) {
+    if (action === 'stop-sync-preview') {
       stopPreview()
       return
     }

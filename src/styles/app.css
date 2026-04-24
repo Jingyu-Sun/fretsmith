@@ -715,6 +715,18 @@ button {
   margin-left: auto;
 }
 
+.sync-point-preview-controls .fine-tune-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sync-point-preview-controls .toolbar-svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
 .sync-point-body {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -753,6 +765,7 @@ button {
 
 .sync-point-item {
   display: grid;
+  width: 100%;
   grid-template-columns: auto auto 1fr auto 2fr auto;
   align-items: center;
   gap: 8px;
@@ -763,6 +776,7 @@ button {
   margin-bottom: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
+  text-align: left;
 }
 
 .sync-point-item:hover {
@@ -773,6 +787,11 @@ button {
 .sync-point-item.selected {
   background: rgba(59, 130, 246, 0.08);
   border-color: rgba(59, 130, 246, 0.4);
+}
+
+.sync-point-item:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.55);
+  outline-offset: 2px;
 }
 
 .sync-point-radio {
@@ -833,6 +852,10 @@ button {
 .sync-point-delete .toolbar-svg {
   width: 12px;
   height: 12px;
+}
+
+.sync-point-editor[data-sync-editor-state='previewing'] .sync-point-preview-controls {
+  position: relative;
 }
 
 .fine-tune-row {
