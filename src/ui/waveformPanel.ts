@@ -25,7 +25,7 @@ export const renderAudioSyncPanel = (state: PracticeState, scorePositions: strin
         <span id="audio-timeline-end">0:00</span>
       </div>
     </div>
-    ${renderSyncPointEditor(state, scorePositions, selectedScoreDetail)}
+    <div class="audio-sync-editor-slot">${renderSyncPointEditor(state, scorePositions, selectedScoreDetail)}</div>
   </section>
 `
 

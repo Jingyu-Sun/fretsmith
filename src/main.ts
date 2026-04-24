@@ -279,38 +279,92 @@ const syncWaveformUi = () => {
   updateSyncPointEditorUi()
 }
 
-let lastSyncEditorKey = ''
+let lastSyncEditorStructureKey = ''
+let lastSyncEditorSelectionKey = ''
 
 const updateSyncPointEditorUi = () => {
-  const editorContainer = document.querySelector('.audio-sync-panel')
-  if (!editorContainer) return
-
-  const selectedPoint = state.selectedSyncPointIndex !== null ? state.syncPoints[state.selectedSyncPointIndex] ?? null : null
-  const editorKey = [
-    state.syncPointEditorVisible,
-    state.syncPoints.length,
-    state.selectedSyncPointIndex,
-    state.syncEditorMode === 'previewing',
-    selectedPoint?.millisecondOffset ?? '',
-    selectedPoint?.barIndex ?? '',
-    selectedPoint?.barPosition ?? '',
-  ].join(':')
-  if (editorKey === lastSyncEditorKey) return
-  lastSyncEditorKey = editorKey
+  const editorSlot = document.querySelector<HTMLElement>('.audio-sync-editor-slot')
+  if (!editorSlot) return
 
   const scorePositions = computeScorePositions()
   const scoreDetail = computeSelectedScoreDetail()
-  const existingEditor = editorContainer.querySelector('.sync-point-editor')
+  const selectedPoint = state.selectedSyncPointIndex !== null ? state.syncPoints[state.selectedSyncPointIndex] ?? null : null
+  const structureKey = [
+    state.syncPointEditorVisible,
+    state.syncPoints.length,
+    state.selectedSyncPointIndex,
+    state.syncEditorMode,
+    Boolean(selectedPoint && scoreDetail),
+  ].join(':')
 
-  if (existingEditor) {
-    existingEditor.remove()
+  if (structureKey !== lastSyncEditorStructureKey) {
+    lastSyncEditorStructureKey = structureKey
+    lastSyncEditorSelectionKey = ''
+    editorSlot.innerHTML = renderSyncPointEditor(state, scorePositions, scoreDetail)
+    return
   }
 
-  const editorHtml = renderSyncPointEditor(state, scorePositions, scoreDetail)
+  const list = editorSlot.querySelector<HTMLElement>('.sync-point-list')
+  if (list) {
+    const nextListMarkup = state.syncPoints.length === 0
+      ? '<div class="sync-point-empty">No sync points yet. Click "+ Add" to create one.</div>'
+      : state.syncPoints
+        .map((point, index) => {
+          const isSelected = index === state.selectedSyncPointIndex
+          const totalSeconds = point.millisecondOffset / 1000
+          const minutes = Math.floor(totalSeconds / 60)
+          const seconds = (totalSeconds % 60).toFixed(3)
+          const audioTime = `${minutes}:${seconds.padStart(6, '0')}`
+          const scorePos = scorePositions[index] || `Bar ${point.barIndex + 1}`
 
-  const timeline = editorContainer.querySelector('.audio-timeline')
-  if (editorHtml && timeline) {
-    timeline.insertAdjacentHTML('afterend', editorHtml)
+          return `
+            <button class="sync-point-item ${isSelected ? 'selected' : ''}" data-index="${index}" data-action="select-sync-point" type="button">
+              <span class="sync-point-radio">${isSelected ? '●' : '○'}</span>
+              <span class="sync-point-number">#${index + 1}</span>
+              <span class="sync-point-audio">${audioTime}</span>
+              <span class="sync-point-arrow">→</span>
+              <span class="sync-point-score">${scorePos}</span>
+              <span class="sync-point-delete" data-index="${index}" data-action="delete-sync-point" role="button" tabindex="-1" title="Delete sync point">
+                <svg class="toolbar-svg" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </span>
+            </button>
+          `
+        })
+        .join('')
+
+    if (list.innerHTML !== nextListMarkup) {
+      list.innerHTML = nextListMarkup
+    }
+  }
+
+  const count = editorSlot.querySelector<HTMLElement>('.sync-point-count')
+  if (count) {
+    count.textContent = `${state.syncPoints.length} / 10`
+  }
+
+  const clearButton = editorSlot.querySelector<HTMLButtonElement>('#clear-sync-points-editor')
+  if (clearButton) {
+    const hasSyncPoints = state.syncPoints.length > 0
+    clearButton.disabled = !hasSyncPoints
+    clearButton.title = 'Clear all sync points'
+  }
+
+  const selectionKey = [
+    state.selectedSyncPointIndex,
+    state.syncEditorMode,
+    selectedPoint?.millisecondOffset ?? '',
+    selectedPoint?.barIndex ?? '',
+    selectedPoint?.barPosition ?? '',
+    scoreDetail?.barNumber ?? '',
+    scoreDetail?.beatNumber ?? '',
+    scoreDetail?.tick ?? '',
+  ].join(':')
+
+  if (selectionKey !== lastSyncEditorSelectionKey) {
+    lastSyncEditorSelectionKey = selectionKey
+    editorSlot.innerHTML = renderSyncPointEditor(state, scorePositions, scoreDetail)
   }
 }
 
