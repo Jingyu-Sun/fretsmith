@@ -504,7 +504,6 @@ button {
   padding: 14px 14px 28px;
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.94));
   border-top: 1px solid rgba(226, 232, 240, 0.5);
-  cursor: pointer;
   outline: none;
 }
 
@@ -519,6 +518,13 @@ button {
   background: #e2e8f0;
   border-radius: 4px;
   overflow: visible;
+  cursor: pointer;
+}
+
+.audio-timeline-track::before {
+  content: '';
+  position: absolute;
+  inset: -8px 0 0;
 }
 
 .audio-timeline-progress {
@@ -564,7 +570,7 @@ button {
 
 .audio-sync-marker {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 6px);
   width: 0;
   height: 0;
   border-left: 5px solid transparent;
@@ -598,7 +604,8 @@ button {
   color: #ef4444;
   white-space: nowrap;
   font-weight: 600;
-  pointer-events: none;
+  cursor: pointer;
+  padding: 2px 4px;
 }
 
 .audio-sync-hint {

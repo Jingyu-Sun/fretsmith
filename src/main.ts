@@ -705,14 +705,16 @@ const bindUi = () => {
 
   if (audioTimeline) {
     let isDragging = false
+    const audioTimelineTrack = audioTimeline.querySelector<HTMLElement>('.audio-timeline-track')
 
     const seekFromMouse = (e: MouseEvent) => {
       const seconds = getTimelinePositionFromEvent(e, audioTimeline)
       seekAudioTo(seconds)
     }
 
-    audioTimeline.addEventListener('mousedown', (e) => {
+    audioTimelineTrack?.addEventListener('mousedown', (e) => {
       if (!wavesurfer || !state.mp3Loaded) return
+      if ((e.target as HTMLElement).closest('.audio-sync-marker')) return
       isDragging = true
       seekFromMouse(e)
     })
