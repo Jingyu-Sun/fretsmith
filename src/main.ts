@@ -67,12 +67,12 @@ const computeSelectedScoreDetail = (): { barNumber: number; beatNumber: string; 
   const beatsInBar = bar.timeSignatureNumerator
   const ticksPerBeat = barDuration / beatsInBar
   const tickInBar = tick - barStart
-  const beatNumber = ticksPerBeat > 0 ? tickInBar / ticksPerBeat + 1 : 1
+  const beatNumber = ticksPerBeat > 0 ? Math.floor(tickInBar / ticksPerBeat) + 1 : 1
   const tickInBeat = ticksPerBeat > 0 ? Math.round(tickInBar % ticksPerBeat) : 0
 
   return {
     barNumber: bar.index + 1,
-    beatNumber: beatNumber < 1.01 ? '1' : beatNumber.toFixed(beatNumber % 1 < 0.01 ? 0 : 2),
+    beatNumber: String(beatNumber),
     tick: tickInBeat,
   }
 }
@@ -260,6 +260,13 @@ const syncUi = () => {
   syncWaveformUi()
 }
 
+const showSyncStatus = (msg: string, isError = false) => {
+  const el = document.querySelector<HTMLElement>('#audio-sync-status')
+  if (!el) return
+  el.textContent = msg
+  el.style.color = isError ? '#ef4444' : ''
+}
+
 const syncWaveformUi = () => {
   const mp3Toggle = document.querySelector<HTMLButtonElement>('#mp3-toggle')
   const toggleSyncEditorBtn = document.querySelector<HTMLButtonElement>('#toggle-sync-editor')
@@ -409,9 +416,13 @@ const updateSyncPointEditorUi = () => {
 
   const addButton = editorSlot.querySelector<HTMLButtonElement>('#add-sync-point')
   if (addButton) {
-    const canAddMore = state.syncPoints.length < 10
+    const currentBarIndex = player && currentScore ? tickToBarPosition(currentScore, player.getTickPosition())?.barIndex ?? null : null
+    const isUpdate = currentBarIndex !== null && state.syncPoints.some((p) => p.barIndex === currentBarIndex)
+    const canAddMore = isUpdate || state.syncPoints.length < 10
     addButton.disabled = !canAddMore
-    addButton.title = canAddMore ? 'Add sync point at current position' : 'Maximum 10 sync points reached'
+    const label = addButton.querySelector('span')
+    if (label) label.textContent = isUpdate ? 'Update' : '+ Add'
+    addButton.title = !canAddMore ? 'Maximum 10 sync points reached' : isUpdate ? 'Update sync point for current bar' : 'Add sync point at current position'
   }
 
   const clearButton = editorSlot.querySelector<HTMLButtonElement>('#clear-sync-points-editor')
@@ -778,7 +789,11 @@ const handleBeatSelection = (beat: Beat) => {
     const barDuration = beat.voice.bar.calculateDuration()
     const barPosition = barDuration > 0 ? beat.playbackStart / barDuration : 0
     const millisecondOffset = wavesurfer.currentTime * 1000
-    syncManager.addPoint(barIndex, millisecondOffset, barPosition)
+    const added = syncManager.addPoint(barIndex, millisecondOffset, barPosition)
+    if (!added) {
+      showSyncStatus('Conflict: audio/score order mismatch.', true)
+      return
+    }
     const points = syncManager.getPoints()
 
     if (state.playbackMode === 'mp3' && player) {
@@ -1192,14 +1207,19 @@ const selectSyncPoint = (index: number) => {
 
 const addSyncPoint = () => {
   if (!syncManager || !wavesurfer || !currentScore || !player) return
-  if (state.syncPoints.length >= 10) return
-
-  const currentTick = state.currentBeatTick ?? 0
+  const currentTick = player.getTickPosition()
   const barPos = tickToBarPosition(currentScore, currentTick)
   if (!barPos) return
 
+  const isUpdate = state.syncPoints.some((p) => p.barIndex === barPos.barIndex)
+  if (!isUpdate && state.syncPoints.length >= 10) return
+
   const millisecondOffset = wavesurfer.currentTime * 1000
-  syncManager.addPoint(barPos.barIndex, millisecondOffset, barPos.barPosition)
+  const added = syncManager.addPoint(barPos.barIndex, millisecondOffset, barPos.barPosition)
+  if (!added) {
+    showSyncStatus('Conflict: audio/score order mismatch.', true)
+    return
+  }
   const points = syncManager.getPoints()
 
   if (state.playbackMode === 'mp3' && player) {
@@ -1210,12 +1230,12 @@ const addSyncPoint = () => {
     (p) => p.barIndex === barPos.barIndex && p.millisecondOffset === millisecondOffset,
   )
 
+  showSyncStatus(isUpdate ? 'Sync point updated.' : `Sync point added at ${formatTick(currentScore, currentTick)}`)
   setState({
     syncPoints: points,
     selectedSyncPointIndex: newIndex >= 0 ? newIndex : null,
     syncPointEditorVisible: true,
     syncEditorMode: 'selected',
-    statusText: `Sync point added at ${formatTick(currentScore, currentTick)}`,
   })
 
   refreshSyncMarkers(points)
@@ -1244,12 +1264,24 @@ const deleteSyncPointByIndex = (index: number) => {
   ensureCorrectPlaybackMode()
 }
 
+const getNeighborBounds = (index: number) => {
+  const prev = syncManager?.getPointByIndex(index - 1)
+  const next = syncManager?.getPointByIndex(index + 1)
+  return {
+    prevMs: prev ? prev.millisecondOffset : -1,
+    nextMs: next ? next.millisecondOffset : Infinity,
+    prevTick: prev && currentScore ? barPositionToTick(currentScore, prev.barIndex, prev.barPosition) : -1,
+    nextTick: next && currentScore ? barPositionToTick(currentScore, next.barIndex, next.barPosition) : Infinity,
+  }
+}
+
 const nudgeAudioPosition = (deltaMs: number) => {
   if (!syncManager || !currentScore || state.selectedSyncPointIndex === null) return
   const point = syncManager.getPointByIndex(state.selectedSyncPointIndex)
   if (!point) return
 
-  const newOffset = Math.max(0, point.millisecondOffset + deltaMs)
+  const { prevMs, nextMs } = getNeighborBounds(state.selectedSyncPointIndex)
+  const newOffset = Math.max(prevMs + 1, Math.min(nextMs - 1, Math.max(0, point.millisecondOffset + deltaMs)))
   syncManager.updatePoint(state.selectedSyncPointIndex, { millisecondOffset: newOffset })
   const points = syncManager.getPoints()
 
@@ -1272,7 +1304,8 @@ const nudgeScorePosition = (deltaTicks: number) => {
   if (!point) return
 
   const currentTick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
-  const newTick = Math.max(0, currentTick + deltaTicks)
+  const { prevTick, nextTick } = getNeighborBounds(state.selectedSyncPointIndex)
+  const newTick = Math.max(prevTick + 1, Math.min(nextTick - 1, Math.max(0, currentTick + deltaTicks)))
   const newBarPos = tickToBarPosition(currentScore, newTick)
   if (!newBarPos) return
 
@@ -1298,13 +1331,21 @@ const nudgeScoreByBar = (deltaBar: number) => {
   const point = syncManager.getPointByIndex(state.selectedSyncPointIndex)
   if (!point) return
 
-  const targetBarIndex = Math.max(0, Math.min(currentScore.masterBars.length - 1, point.barIndex + deltaBar))
+  const rawBarIndex = Math.max(0, Math.min(currentScore.masterBars.length - 1, point.barIndex + deltaBar))
+  const { prevTick, nextTick } = getNeighborBounds(state.selectedSyncPointIndex)
+  const rawBar = currentScore.masterBars[rawBarIndex]
+  if (!rawBar) return
+  const rawTick = rawBar.start
+  const clampedTick = Math.max(prevTick + 1, Math.min(nextTick - 1, rawTick))
+  const clampedBarPos = tickToBarPosition(currentScore, clampedTick)
+  if (!clampedBarPos) return
+  const targetBarIndex = clampedBarPos.barIndex
   const targetBar = currentScore.masterBars[targetBarIndex]
   if (!targetBar) return
 
   syncManager.updatePoint(state.selectedSyncPointIndex, {
     barIndex: targetBarIndex,
-    barPosition: 0,
+    barPosition: clampedBarPos.barPosition,
   })
   const points = syncManager.getPoints()
 
@@ -1313,9 +1354,9 @@ const nudgeScoreByBar = (deltaBar: number) => {
   }
 
   setState({ syncPoints: points })
-  player?.seekToTick(targetBar.start)
+  player?.seekToTick(clampedTick)
   if (wavesurfer) seekAudioTo(point.millisecondOffset / 1000)
-  highlightSyncPointOnScore(targetBarIndex, 0)
+  highlightSyncPointOnScore(targetBarIndex, clampedBarPos.barPosition)
   refreshSyncMarkers(points)
 }
 
@@ -1332,7 +1373,11 @@ const nudgeScoreByBeat = (deltaBeat: number) => {
   const ticksPerBeat = barDuration / beatsInBar
 
   const currentTick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
-  const newTick = Math.max(0, currentTick + deltaBeat * ticksPerBeat)
+  const { prevTick, nextTick } = getNeighborBounds(state.selectedSyncPointIndex)
+  const rawTick = Math.max(0, currentTick + deltaBeat * ticksPerBeat)
+  const snapped = Math.round(rawTick / ticksPerBeat) * ticksPerBeat
+  if (snapped <= prevTick || snapped >= nextTick) return
+  const newTick = snapped
   const newBarPos = tickToBarPosition(currentScore, newTick)
   if (!newBarPos) return
 

@@ -160,6 +160,10 @@ export class PracticePlayer {
     }, 1000)
   }
 
+  getTickPosition(): number {
+    return this.api.tickPosition
+  }
+
   seekToTick(tick: number) {
     this.api.tickPosition = tick
   }

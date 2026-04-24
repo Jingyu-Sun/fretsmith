@@ -17,17 +17,23 @@ export class SyncManager {
     return [...this.points]
   }
 
-  addPoint(barIndex: number, millisecondOffset: number, barPosition = 0, barOccurence = 0): SyncPoint {
-    const existing = this.points.findIndex(
-      (p) => p.barIndex === barIndex && p.barOccurence === barOccurence,
-    )
+  addPoint(barIndex: number, millisecondOffset: number, barPosition = 0, barOccurence = 0): SyncPoint | null {
+    const existing = this.points.findIndex((p) => p.barIndex === barIndex)
     const point: SyncPoint = { barIndex, barPosition, barOccurence, millisecondOffset }
+
+    const draft = [...this.points]
     if (existing >= 0) {
-      this.points[existing] = point
+      draft[existing] = point
     } else {
-      this.points.push(point)
+      draft.push(point)
     }
-    this.points.sort((a, b) => a.barIndex - b.barIndex || a.barOccurence - b.barOccurence)
+    draft.sort((a, b) => a.barIndex - b.barIndex || a.barOccurence - b.barOccurence)
+
+    for (let i = 1; i < draft.length; i++) {
+      if (draft[i].millisecondOffset <= draft[i - 1].millisecondOffset) return null
+    }
+
+    this.points = draft
     this.save()
     return point
   }
