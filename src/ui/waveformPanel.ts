@@ -5,7 +5,7 @@ import type { ScorePositionDetail } from './syncPointEditor'
 export const renderAudioSyncPanel = (state: PracticeState, scorePositions: string[] = [], selectedScoreDetail: ScorePositionDetail | null = null) => `
   <section class="audio-sync-panel ${state.waveformVisible ? 'is-visible' : ''}">
     <div class="audio-sync-toolbar">
-      <label class="file-button file-button-small" for="mp3-file-input">Load MP3</label>
+      <label class="file-button file-button-small" for="mp3-file-input">Load Audio</label>
       <input id="mp3-file-input" type="file" accept=".mp3,.wav,.ogg,.m4a,.flac,.aac" />
       ${state.mp3FileName ? `<span class="audio-sync-filename">${state.mp3FileName}</span>` : ''}
       <button id="toggle-sync-editor" class="toolbar-icon-button toolbar-transport-button audio-sync-btn ${state.syncPointEditorVisible ? 'is-active' : ''}" title="Toggle sync point editor" ${state.mp3Loaded ? '' : 'disabled'}>

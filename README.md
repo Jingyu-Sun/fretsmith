@@ -24,14 +24,14 @@ Load Guitar Pro files in the browser, render notation and tablature, sync with M
 - Enable or disable metronome
 - Define a selected range from the score
 - Toggle loop playback independently of the selected range
-- **MP3 playback**: Load an MP3 (or WAV/OGG/M4A/FLAC/AAC) alongside the score for external audio playback with a visual timeline, playhead, and seek controls
-- **GP/MP3 sync**: Map positions in the score to timestamps in the audio using sync points — the score cursor follows the MP3 during playback
+- **Audio playback**: Load an audio file (MP3, WAV, OGG, M4A, FLAC, AAC) alongside the score for external audio playback with a visual timeline, playhead, and seek controls
+- **Score/audio sync**: Map positions in the score to timestamps in the audio using sync points — the score cursor follows the audio during playback
   - Add up to 10 sync points per file pair
   - One sync point per bar with automatic upsert
   - Fine-tune audio time (seconds + milliseconds) and score position (bar, beat, tick) with nudge controls
   - Monotonic ordering enforced — audio and score positions must stay in the same rank order
   - Preview sync points with looping 1s/2s playback
-  - Sync points persist in localStorage, keyed by GP + MP3 filename pair
+  - Sync points persist in localStorage, keyed by GP + audio filename pair
   - Click a score bar to select its sync point; click a bar without one to deselect
 
 ## Tech stack
@@ -86,7 +86,7 @@ Visit **[jingyu-sun.github.io/fretsmith](https://jingyu-sun.github.io/fretsmith/
 1. Click **Open GP File**
 2. Choose a supported Guitar Pro file
 3. Use the bottom toolbar to control playback, notation, zoom, track selection, count-in, metronome, the selected range, and loop playback
-4. Click the **MP3** button in the toolbar to open the audio panel, then **Load MP3** to load an audio file
+4. Click the **Audio** button in the toolbar to open the audio panel, then **Load Audio** to load an audio file
 5. Open the sync editor (pencil button) to add sync points mapping score positions to audio timestamps
 6. Click **+ Add** to create a sync point at the current playhead position, or **Update** to modify an existing one for the current bar
 7. Use the fine-tune controls to adjust audio time and score position precisely

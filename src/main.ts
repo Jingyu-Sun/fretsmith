@@ -1143,7 +1143,7 @@ const loadMp3File = async (file: File) => {
     mp3FileName: file.name,
     mp3Loaded: true,
     waveformVisible: true,
-    statusText: 'MP3 loaded. Scrub to find positions, then click bars in the score to set sync points.',
+    statusText: 'Audio loaded. Scrub to find positions, then click bars in the score to set sync points.',
   })
 
   updateTimelineEndLabel()
