@@ -53,7 +53,7 @@ const computeScorePositions = (): string[] => {
   })
 }
 
-const computeSelectedScoreDetail = (): { barNumber: number; beatNumber: string; tick: number } | null => {
+const computeSelectedScoreDetail = (): { barNumber: number; beatNumber: string; tick: number; maxTick: number } | null => {
   if (!currentScore || state.selectedSyncPointIndex === null) return null
   const point = state.syncPoints[state.selectedSyncPointIndex]
   if (!point) return null
@@ -68,12 +68,14 @@ const computeSelectedScoreDetail = (): { barNumber: number; beatNumber: string; 
   const ticksPerBeat = barDuration / beatsInBar
   const tickInBar = tick - barStart
   const beatNumber = ticksPerBeat > 0 ? Math.floor(tickInBar / ticksPerBeat) + 1 : 1
-  const tickInBeat = ticksPerBeat > 0 ? Math.round(tickInBar % ticksPerBeat) : 0
+  const tickInBeat = ticksPerBeat > 0 ? Math.round((tickInBar % ticksPerBeat) / 60) * 60 : 0
+  const maxTick = ticksPerBeat > 0 ? Math.floor((ticksPerBeat - 1) / 60) * 60 : 0
 
   return {
     barNumber: bar.index + 1,
     beatNumber: String(beatNumber),
     tick: tickInBeat,
+    maxTick,
   }
 }
 
@@ -361,16 +363,28 @@ const updateSyncPointEditorSelection = (editorSlot: HTMLElement, scoreDetail: Re
     stopPreviewButton.disabled = state.syncEditorMode !== 'previewing'
   }
 
-  const audioValue = editorSlot.querySelector<HTMLElement>('.fine-tune-value-inline')
-  if (audioValue && selectedPoint) {
-    audioValue.textContent = formatSyncPointAudioTime(selectedPoint.millisecondOffset)
+  const audioSecondsValue = editorSlot.querySelector<HTMLElement>('#audio-seconds-value')
+  const audioMsInput = editorSlot.querySelector<HTMLInputElement>('#audio-ms-input')
+  if (selectedPoint) {
+    const totalSeconds = Math.floor(selectedPoint.millisecondOffset / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    if (audioSecondsValue) audioSecondsValue.textContent = `${minutes}:${String(seconds).padStart(2, '0')}`
+    if (audioMsInput && document.activeElement !== audioMsInput) {
+      audioMsInput.value = String(Math.round(selectedPoint.millisecondOffset % 1000))
+    }
   }
 
   const nudgeValues = editorSlot.querySelectorAll<HTMLElement>('.fine-tune-nudge-value')
-  if (selectedPoint && scoreDetail && nudgeValues.length === 3) {
-    nudgeValues[0].textContent = `Bar ${scoreDetail.barNumber}`
-    nudgeValues[1].textContent = `Beat ${scoreDetail.beatNumber}`
-    nudgeValues[2].textContent = `Tick ${scoreDetail.tick}`
+  if (selectedPoint && scoreDetail && nudgeValues.length === 4) {
+    nudgeValues[1].textContent = `Bar ${scoreDetail.barNumber}`
+    nudgeValues[2].textContent = `Beat ${scoreDetail.beatNumber}`
+    nudgeValues[3].textContent = `Tick ${scoreDetail.tick}`
+  }
+
+  const tickRange = editorSlot.querySelector<HTMLElement>('#tick-range-label')
+  if (tickRange && scoreDetail) {
+    tickRange.textContent = `0–${scoreDetail.maxTick}`
   }
 }
 
@@ -719,6 +733,18 @@ const bindUi = () => {
     }
   })
 
+  document.addEventListener('change', (e) => {
+    const target = e.target as HTMLElement
+    if (target.id === 'audio-ms-input') {
+      const input = target as HTMLInputElement
+      let ms = parseInt(input.value, 10)
+      if (isNaN(ms)) ms = 0
+      ms = Math.max(0, Math.min(999, ms))
+      input.value = String(ms)
+      setAudioMilliseconds(ms)
+    }
+  })
+
   if (audioTimeline) {
     let isDragging = false
     const audioTimelineTrack = audioTimeline.querySelector<HTMLElement>('.audio-timeline-track')
@@ -777,10 +803,10 @@ const bindUi = () => {
       nudgeAudioPosition(100)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      nudgeScorePosition(1)
+      nudgeScorePosition(60)
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
-      nudgeScorePosition(-1)
+      nudgeScorePosition(-60)
     }
   })
 }
@@ -1322,14 +1348,56 @@ const nudgeAudioPosition = (deltaMs: number) => {
   refreshSyncMarkers(points)
 }
 
+const setAudioMilliseconds = (ms: number) => {
+  if (!syncManager || !currentScore || state.selectedSyncPointIndex === null) return
+  const point = syncManager.getPointByIndex(state.selectedSyncPointIndex)
+  if (!point) return
+
+  const wholeSec = Math.floor(point.millisecondOffset / 1000) * 1000
+  const newOffset = wholeSec + ms
+  const { prevMs, nextMs } = getNeighborBounds(state.selectedSyncPointIndex)
+  if (newOffset <= prevMs || newOffset >= nextMs) {
+    showSyncStatus('Conflict: audio/score order mismatch.', true)
+    return
+  }
+
+  syncManager.updatePoint(state.selectedSyncPointIndex, { millisecondOffset: newOffset })
+  const points = syncManager.getPoints()
+
+  if (state.playbackMode === 'mp3' && player) {
+    player.applySyncPoints(points)
+  }
+
+  setState({ syncPoints: points })
+
+  if (wavesurfer) {
+    seekAudioTo(newOffset / 1000)
+  }
+
+  refreshSyncMarkers(points)
+}
+
 const nudgeScorePosition = (deltaTicks: number) => {
   if (!syncManager || !currentScore || state.selectedSyncPointIndex === null) return
   const point = syncManager.getPointByIndex(state.selectedSyncPointIndex)
   if (!point) return
 
   const currentTick = barPositionToTick(currentScore, point.barIndex, point.barPosition)
+  const bar = findBarContainingTick(currentScore, currentTick)
+  if (!bar) return
+  const barStart = bar.start
+  const tickInBar = currentTick - barStart
+  const barDuration = bar.calculateDuration()
+  const ticksPerBeat = barDuration / bar.timeSignatureNumerator
+  const tickInBeat = tickInBar % ticksPerBeat
+  const snappedTickInBeat = Math.round(tickInBeat / 60) * 60
+  const baseTick = currentTick - tickInBeat + snappedTickInBeat
+  const rawTick = baseTick + deltaTicks
+
   const { prevTick, nextTick } = getNeighborBounds(state.selectedSyncPointIndex)
-  const newTick = Math.max(prevTick + 1, Math.min(nextTick - 1, Math.max(0, currentTick + deltaTicks)))
+  const snapped = Math.round((rawTick - barStart) / 60) * 60 + barStart
+  if (snapped <= prevTick || snapped >= nextTick || snapped < 0) return
+  const newTick = snapped
   const newBarPos = tickToBarPosition(currentScore, newTick)
   if (!newBarPos) return
 

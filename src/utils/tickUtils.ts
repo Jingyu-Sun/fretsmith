@@ -49,7 +49,7 @@ export const formatTick = (score: Score, tick: number): string => {
   const ticksPerBeat = barDuration / beatsInBar
 
   const beat = ticksPerBeat > 0 ? Math.floor(tickInBar / ticksPerBeat) + 1 : 1
-  const tickInBeat = ticksPerBeat > 0 ? Math.round(tickInBar % ticksPerBeat) : 0
+  const tickInBeat = ticksPerBeat > 0 ? Math.round((tickInBar % ticksPerBeat) / 60) * 60 : 0
 
   if (tickInBeat === 0) {
     return `Bar ${bar.index + 1}, beat ${beat}`

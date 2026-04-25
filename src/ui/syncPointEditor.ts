@@ -19,6 +19,17 @@ const formatAudioTime = (ms: number): string => {
   return `${minutes}:${seconds.padStart(6, '0')}`
 }
 
+const formatAudioSeconds = (ms: number): string => {
+  const totalSeconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+const formatAudioMs = (ms: number): string => {
+  return String(Math.round(ms % 1000))
+}
+
 const renderSyncPointList = (
   syncPoints: SyncPoint[],
   selectedIndex: number | null,
@@ -56,6 +67,7 @@ export interface ScorePositionDetail {
   barNumber: number
   beatNumber: string
   tick: number
+  maxTick: number
 }
 
 export const renderSyncPointEditor = (
@@ -72,7 +84,6 @@ export const renderSyncPointEditor = (
     : null
 
   const canAddMore = state.syncPoints.length < 10
-  const audioTime = selectedPoint ? formatAudioTime(selectedPoint.millisecondOffset) : '0:00.000'
   const hasSyncPoints = state.syncPoints.length > 0
   const isPreviewing = state.syncEditorMode === 'previewing'
 
@@ -113,9 +124,17 @@ export const renderSyncPointEditor = (
           <div class="sync-point-editor-column">
             <div class="fine-tune-row">
               <span class="fine-tune-label-inline">Audio:</span>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-audio-back" data-action="nudge-audio" data-delta-ms="-100" title="−100ms">−</button>
-              <span class="fine-tune-value-inline">${audioTime}</span>
-              <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-audio-forward" data-action="nudge-audio" data-delta-ms="100" title="+100ms">+</button>
+              <div class="fine-tune-nudge-group">
+                <button class="fine-tune-btn fine-tune-btn-compact" data-action="nudge-audio" data-delta-ms="-1000" title="−1s">−</button>
+                <span class="fine-tune-nudge-value" id="audio-seconds-value">${formatAudioSeconds(selectedPoint.millisecondOffset)}</span>
+                <button class="fine-tune-btn fine-tune-btn-compact" data-action="nudge-audio" data-delta-ms="1000" title="+1s">+</button>
+              </div>
+              <div class="fine-tune-nudge-group">
+                <button class="fine-tune-btn fine-tune-btn-compact" data-action="nudge-audio" data-delta-ms="-1" title="−1ms">−</button>
+                <input class="fine-tune-ms-input" id="audio-ms-input" type="number" min="0" max="999" value="${formatAudioMs(selectedPoint.millisecondOffset)}" title="Milliseconds" />
+                <button class="fine-tune-btn fine-tune-btn-compact" data-action="nudge-audio" data-delta-ms="1" title="+1ms">+</button>
+                <span class="fine-tune-range-label">ms</span>
+              </div>
             </div>
             <div class="fine-tune-row">
               <span class="fine-tune-label-inline">Score:</span>
@@ -130,10 +149,11 @@ export const renderSyncPointEditor = (
                 <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-beat-forward" data-action="nudge-beat" data-delta="1" title="+1 beat">+</button>
               </div>
               <div class="fine-tune-nudge-group">
-                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-tick-back" data-action="nudge-tick" data-delta="-1" title="−1 tick">−</button>
+                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-tick-back" data-action="nudge-tick" data-delta="-60" title="−60 ticks">−</button>
                 <span class="fine-tune-nudge-value">Tick ${selectedScoreDetail.tick}</span>
-                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-tick-forward" data-action="nudge-tick" data-delta="1" title="+1 tick">+</button>
+                <button class="fine-tune-btn fine-tune-btn-compact" id="nudge-tick-forward" data-action="nudge-tick" data-delta="60" title="+60 ticks">+</button>
               </div>
+              <span class="fine-tune-range-label" id="tick-range-label">0–${selectedScoreDetail.maxTick}</span>
             </div>
           </div>
         ` : ''}
